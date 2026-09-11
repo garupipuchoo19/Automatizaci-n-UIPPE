@@ -1,0 +1,17 @@
+# Entorno virtual y temporales de Python
+venv/
+__pycache__/
+*.pyc
+
+# Variables de entorno y llaves secretas
+.env
+*.env
+
+# Salidas, logs y respaldos locales
+logs/
+salidas/
+respaldos/
+
+# Configuración de IDEs
+.vscode/
+.idea/

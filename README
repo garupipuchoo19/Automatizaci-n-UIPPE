@@ -1,0 +1,95 @@
+# Sistema de Automatización de Reportes Administrativos - UIPPE
+
+**OPERAGUA Cuautitlán Izcalli**
+*Unidad de Información, Planeación, Programación y Evaluación (UIPPE)*
+
+---
+
+## Descripción del Proyecto
+
+Aplicación de escritorio modular desarrollada en Python para la **Unidad de Información, Planeación, Programación y Evaluación (UIPPE)** del organismo público descentralizado **OPERAGUA Cuautitlán Izcalli**.
+
+El sistema tiene como objetivo automatizar la lectura, la validación normativa, consolidación y generación de reportes ejecutivos (Excel y Word) a partir de los archivos de insumo de evaluación de metas e indicadores recibidos de las distintas áreas administrativas del organismo.
+
+---
+
+## Arquitectura y Tecnologías Utilizadas
+
+* **Lenguaje:** Python 3.11.9
+* **Interfaz Gráfica (GUI):** `CustomTkinter`
+* **Procesamiento de Datos:** `pandas` / `openpyxl`
+* **Generación de Documentos:** `python-docx` / `reportlab`
+* **Lectura e Ingesta:** `pdfplumber` / `python-docx`
+* **Compilador Binario:** `Nuitka`
+
+---
+
+## Características Principales y Funcionalidad
+
+1. **Semaforización Normativa (PbRM):**
+   * Clasificación automática del porcentaje de cumplimiento por meta en 5 niveles normativos:
+     * 🟢 **Adecuado:** 95.0% - 105.0%
+     * 🟠 **Crítico:** 70.0% - 94.9%
+     * 🔵 **Sobrepasado:** > 105.0%
+     * 🟡 **Regular:** 50.0% - 69.9%
+     * 🔴 **Deficiente:** < 50.0%
+
+2. **Generación de Concentrado Ejecutivo:**
+   * Sustituye el vaciado masivo de registros por una **Tabla Sintética de Concentrado** de 1 página en el reporte Word oficial, incorporando métricas globales, porcentajes e identificadores de color institucionales.
+
+3. **Inyección en Plantillas Oficiales:**
+   * Carga y respeta el formato base de la plantilla Word (`ITSP 2 TRIMESTRE 2026.docx`) inyectando los cuadros resumidos sin sobreescribir el archivo original.
+
+4. **Validación de Insumos (Estándar / Estricto):**
+   * Motor de inspección para identificar celdas vacías, inconsistencias en fórmulas, registros incompletos y duplicados antes de emitir el reporte final.
+
+---
+
+## Estructura del Proyecto
+
+```text
+Automatizacion_UIPPE/
+│
+├── venv/                       # Entorno virtual de Python
+│
+├── entradas/                   # Archivos de insumo recibidos (contiene "CUAUTITLAN METAS E INDICADORES 2026.xlsx")
+├── salidas/                    # Reportes procesados, consolidados e inyectados generados por el sistema
+├── plantillas/                 # Formatos base oficiales e insumos estáticos (.docx de ITSP 1° y 2° Trimestre)
+├── logs/                       # Historial de ejecuciones y registro físico de eventos (log_uippe_YYYYMM.log)
+├── respaldos/                  # Copias de seguridad de contexto Word e historial de salidas procesadas
+│   ├── contexto_word/          # Archivos Word consolidados de contexto previo
+│   └── historico_salidas/      # Resguardo de versiones anteriores de reportes ejecutivos
+│
+├── src/                        # Código fuente modular
+│   ├── __init__.py
+│   │
+│   ├── controllers/            # Controladores de flujo y orquestación de procesos
+│   │   ├── __init__.py
+│   │   └── procesador_uippe.py # Orquestador general del pipeline (Engine, Validador y Generador)
+│   │
+│   ├── core/                   # Lógica de negocio, motores de cálculo e inyección
+│   │   ├── __init__.py
+│   │   ├── excel_engine.py     # Motor de lectura, recálculo de sábanas y evaluación por área
+│   │   ├── generador_doc.py    # Exportación a Excel estilizado (.xlsx) y Concentrado Ejecutivo en Word (.docx)
+│   │   ├── generador_excel_pbrm.py # Motor de inyección directa de avances y justificaciones en Excel sin romper fórmulas
+│   │   ├── integracion_gemini.py   # Conector e integración con la API de Gemini para análisis cualitativo
+│   │   ├── lector_excel.py     # Lectura y parsing especializado de hojas de trabajo de Excel
+│   │   ├── lector_pdf.py       # Extracción de tablas y texto estructurado desde archivos PDF
+│   │   └── validador_reg.py    # Clasificador de desempeño por semáforo oficial (Púrpura, Verde, Amarillo, Naranja, Rojo)
+│   │
+│   ├── gui/                    # Módulo de Interfaz Gráfica (CustomTkinter)
+│   │   ├── __init__.py
+│   │   ├── app.py              # Ventana principal con navegación por pestañas (Captura + Consolidador)
+│   │   ├── captura_view.py     # VistaCapturaRapida (Interfaz de formulario por Dirección y Área)
+│   │   └── components.py       # Componentes reutilizables de UI (Tarjetas KPI y Opciones de Exportación)
+│   │
+│   └── utils/                  # Herramientas y servicios auxiliares
+│       ├── __init__.py
+│       ├── helpers.py          # Manejo de rutas absolutas (BASE_DIR), auto-creación de carpetas y fechas oficiales
+│       └── logger.py           # Sistema de registro e historial automatizado de eventos hacia la carpeta logs/
+│
+├── main.py                     # Punto de entrada principal para iniciar la aplicación (GUI)
+├── test_prueba.py             # Script de prueba de integración y validación CLI
+├── generar_docs.py             # Script/Utilidad de formato avanzado para generación de reportes en Word
+├── requirements.txt            # Inventario de dependencias y librerías del proyecto
+└── README.md                   # Documentación técnica y guía de uso del repositorio
