@@ -1,5 +1,6 @@
 import os
 import threading
+import shutil
 from datetime import datetime
 import customtkinter as ctk
 from tkinter import filedialog, messagebox
@@ -133,6 +134,14 @@ class AppUIPPE(ctk.CTk):
         )
         self.btn_seleccionar.pack(side="left", padx=15, pady=15)
 
+        self.btn_actualizar_maestro = ctk.CTkButton(
+            self.frame_file, 
+            text="🔄 Actualizar Sábana Maestra Excel", 
+            fg_color="#2b5b84",
+            command=self.actualizar_excel_maestro
+        )
+        self.btn_actualizar_maestro.pack(side="right", padx=15, pady=15)
+
         self.lbl_archivo = ctk.CTkLabel(
             self.frame_file, 
             text="Sin archivo seleccionado...", 
@@ -211,6 +220,46 @@ class AppUIPPE(ctk.CTk):
         self.txt_log.pack(padx=10, pady=(2, 10), fill="both", expand=True)
         
         self.log("Sistema inicializado correctamente. En espera de archivo de insumo...")
+
+    def actualizar_excel_maestro(self):
+        """Permite seleccionar un nuevo archivo Excel y reemplazar la Sábana Maestra activa en entradas/."""
+        tipos = [("Hojas de Cálculo Excel", "*.xlsx *.xls")]
+        archivo_nuevo = filedialog.askopenfilename(
+            title="Seleccionar nueva Sábana Maestra de Excel",
+            initialdir=ENTRADAS_DIR,
+            filetypes=tipos
+        )
+
+        if archivo_nuevo:
+            anio_sel = self.combo_anio.get() if hasattr(self, 'combo_anio') else datetime.now().year
+            nombre_destino = f"CUAUTITLAN METAS E INDICADORES {anio_sel}.xlsx"
+            ruta_destino = os.path.join(ENTRADAS_DIR, nombre_destino)
+
+            # Confirmación de reemplazo
+            if os.path.exists(ruta_destino):
+                respuesta = messagebox.askyesno(
+                    "Confirmar Reemplazo",
+                    f"Ya existe el archivo '{nombre_destino}' en la carpeta entradas/.\n\n¿Deseas reemplazarlo con la nueva versión seleccionada?"
+                )
+                if not respuesta:
+                    return
+
+            try:
+                shutil.copy2(archivo_nuevo, ruta_destino)
+                self.ruta_excel_maestro = ruta_destino
+                
+                # Recargar inyector y la vista de captura
+                self.inyector = InyectorExcelPbRM(self.ruta_excel_maestro)
+                self.vista_captura.ruta_excel_maestro = self.ruta_excel_maestro
+                self.vista_captura.cargar_datos_base()
+                self.vista_captura.actualizar_tabla_metas()
+
+                messagebox.showinfo("¡Éxito!", f"La Sábana Maestra se actualizó correctamente para el ciclo {anio_sel}.")
+                self.log(f"✔ Sábana Maestra actualizada: {nombre_destino}")
+
+            except Exception as e:
+                messagebox.showerror("Error al Copiar", f"No se pudo reemplazar el archivo Excel:\n{e}")
+                self.log(f"ERROR al reemplazar Excel maestro: {str(e)}")
 
     def obtener_fecha_seleccionada(self):
         """Obtiene la fecha formateada en cadena DD/MM/YYYY."""
