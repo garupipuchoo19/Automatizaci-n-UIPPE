@@ -4,9 +4,9 @@ from datetime import datetime
 import customtkinter as ctk
 from tkinter import filedialog, messagebox
 
-# Intentar importar tkcalendar para un selector de fecha visual
+# Intentar importar tkcalendar para el widget desplegable
 try:
-    from tkcalendar import DateEntry
+    from tkcalendar import Calendar
     TIENE_TKCALENDAR = True
 except ImportError:
     TIENE_TKCALENDAR = False
@@ -25,6 +25,58 @@ from src.utils.logger import registrar_evento
 
 ctk.set_appearance_mode("System")
 ctk.set_default_color_theme("blue")
+
+
+class CTkDatePicker(ctk.CTkFrame):
+    """Componente de fecha con diseño 100% nativo e integrado con CustomTkinter."""
+    def __init__(self, master, width=140, **kwargs):
+        super().__init__(master, fg_color="transparent", **kwargs)
+        
+        self.entry_fecha = ctk.CTkEntry(self, width=width - 35, placeholder_text="DD/MM/YYYY")
+        self.entry_fecha.pack(side="left", padx=(0, 2))
+        self.entry_fecha.insert(0, datetime.now().strftime("%d/%m/%Y"))
+
+        self.btn_calendar = ctk.CTkButton(
+            self, 
+            text="📅", 
+            width=30, 
+            fg_color="transparent", 
+            border_width=1,
+            text_color=("black", "white"),
+            command=self._abrir_calendario
+        )
+        self.btn_calendar.pack(side="left")
+
+    def _abrir_calendario(self):
+        if not TIENE_TKCALENDAR:
+            return
+
+        top = ctk.CTkToplevel(self)
+        top.title("Seleccionar Fecha")
+        top.geometry("260x250")
+        top.grab_set()
+        top.resizable(False, False)
+
+        cal = Calendar(
+            top, 
+            selectmode='day', 
+            date_pattern='dd/mm/yyyy',
+            headersbackground='#1f4e78',
+            selectbackground='#1f6aa5'
+        )
+        cal.pack(padx=10, pady=10, fill="both", expand=True)
+
+        def seleccionar():
+            self.entry_fecha.delete(0, "end")
+            self.entry_fecha.insert(0, cal.get_date())
+            top.destroy()
+
+        btn_aceptar = ctk.CTkButton(top, text="Seleccionar", command=seleccionar, height=28)
+        btn_aceptar.pack(pady=(0, 10))
+
+    def get(self):
+        return self.entry_fecha.get().strip()
+
 
 class AppUIPPE(ctk.CTk):
     def __init__(self):
@@ -122,28 +174,12 @@ class AppUIPPE(ctk.CTk):
         self.combo_anio.set(anio_actual)
         self.combo_anio.pack(side="left", padx=5, pady=10)
 
-        # Selector de Fecha de Emisión (Date Picker)
+        # Selector de Fecha de Emisión (Date Picker Estilizado)
         lbl_fecha = ctk.CTkLabel(self.frame_config, text="Fecha Emisión:", font=ctk.CTkFont(weight="bold"))
         lbl_fecha.pack(side="left", padx=(20, 5), pady=10)
 
-        if TIENE_TKCALENDAR:
-            self.picker_fecha = DateEntry(
-                self.frame_config,
-                width=12,
-                background='#1f4e78',
-                foreground='white',
-                bordercolor='#1f4e78',
-                headersbackground='#1f4e78',
-                headersforeground='white',
-                date_pattern='dd/mm/yyyy',
-                font=('Segoe UI', 10)
-            )
-            self.picker_fecha.pack(side="left", padx=5, pady=10)
-        else:
-            # Fallback en caso de no tener tkcalendar instalado
-            self.picker_fecha = ctk.CTkEntry(self.frame_config, width=120)
-            self.picker_fecha.insert(0, datetime.now().strftime("%d/%m/%Y"))
-            self.picker_fecha.pack(side="left", padx=5, pady=10)
+        self.picker_fecha = CTkDatePicker(self.frame_config, width=140)
+        self.picker_fecha.pack(side="left", padx=5, pady=10)
 
         self.frame_kpis = ctk.CTkFrame(self.tab_reportes, fg_color="transparent")
         self.frame_kpis.pack(padx=10, pady=10, fill="x")
@@ -177,10 +213,8 @@ class AppUIPPE(ctk.CTk):
         self.log("Sistema inicializado correctamente. En espera de archivo de insumo...")
 
     def obtener_fecha_seleccionada(self):
-        """Obtiene la fecha formateada en cadena DD/MM/YYYY según el componente activo."""
-        if TIENE_TKCALENDAR and isinstance(self.picker_fecha, DateEntry):
-            return self.picker_fecha.get_date().strftime("%d/%m/%Y")
-        return self.picker_fecha.get().strip()
+        """Obtiene la fecha formateada en cadena DD/MM/YYYY."""
+        return self.picker_fecha.get()
 
     def procesar_guardado_captura(self, df_captura, trimestre_num):
         try:
@@ -251,7 +285,7 @@ class AppUIPPE(ctk.CTk):
         anio_sel = int(self.combo_anio.get())
         fecha_emision = self.obtener_fecha_seleccionada()
 
-        # Cargar API key directamente desde las variables del entorno (.env)
+        # Cargar API key directamente desde las variables de entorno (.env)
         api_key = os.getenv("GEMINI_API_KEY", "").strip()
 
         self.log("----------------------------------------")
