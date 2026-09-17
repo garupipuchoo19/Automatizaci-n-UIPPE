@@ -4,6 +4,13 @@ from datetime import datetime
 import customtkinter as ctk
 from tkinter import filedialog, messagebox
 
+# Intentar importar tkcalendar para un selector de fecha visual
+try:
+    from tkcalendar import DateEntry
+    TIENE_TKCALENDAR = True
+except ImportError:
+    TIENE_TKCALENDAR = False
+
 # Controladores y Backend
 from src.controllers.procesador_uippe import ProcesadorUIPPE
 from src.core.generador_excel_pbrm import InyectorExcelPbRM
@@ -82,25 +89,26 @@ class AppUIPPE(ctk.CTk):
         )
         self.lbl_archivo.pack(side="left", padx=10, fill="x", expand=True)
 
-        # --- CONFIGURACIÓN DE PARÁMETROS, FECHAS Y API KEY ---
+        # --- CONFIGURACIÓN DE PARÁMETROS Y FECHAS DINÁMICAS ---
         self.frame_config = ctk.CTkFrame(self.tab_reportes)
         self.frame_config.pack(padx=10, pady=5, fill="x")
 
+        # Trimestre
         lbl_trim = ctk.CTkLabel(self.frame_config, text="Trimestre:", font=ctk.CTkFont(weight="bold"))
-        lbl_trim.pack(side="left", padx=(10, 2), pady=10)
+        lbl_trim.pack(side="left", padx=(15, 5), pady=10)
 
         self.combo_trimestre_reporte = ctk.CTkComboBox(
             self.frame_config,
             values=["1° TRIMESTRE", "2° TRIMESTRE", "3° TRIMESTRE", "4° TRIMESTRE"],
             state="readonly",
-            width=125
+            width=140
         )
         self.combo_trimestre_reporte.set("1° TRIMESTRE")
-        self.combo_trimestre_reporte.pack(side="left", padx=2, pady=10)
+        self.combo_trimestre_reporte.pack(side="left", padx=5, pady=10)
 
         # Selector de Año Dinámico
         lbl_anio = ctk.CTkLabel(self.frame_config, text="Año:", font=ctk.CTkFont(weight="bold"))
-        lbl_anio.pack(side="left", padx=(10, 2), pady=10)
+        lbl_anio.pack(side="left", padx=(20, 5), pady=10)
 
         anio_actual = str(datetime.now().year)
         anios_opciones = [str(a) for a in range(int(anio_actual) - 2, int(anio_actual) + 3)]
@@ -109,33 +117,33 @@ class AppUIPPE(ctk.CTk):
             self.frame_config,
             values=anios_opciones,
             state="readonly",
-            width=90
+            width=100
         )
         self.combo_anio.set(anio_actual)
-        self.combo_anio.pack(side="left", padx=2, pady=10)
+        self.combo_anio.pack(side="left", padx=5, pady=10)
 
-        # Campo de Fecha de Emisión
+        # Selector de Fecha de Emisión (Date Picker)
         lbl_fecha = ctk.CTkLabel(self.frame_config, text="Fecha Emisión:", font=ctk.CTkFont(weight="bold"))
-        lbl_fecha.pack(side="left", padx=(10, 2), pady=10)
+        lbl_fecha.pack(side="left", padx=(20, 5), pady=10)
 
-        self.txt_fecha_emision = ctk.CTkEntry(
-            self.frame_config,
-            width=105
-        )
-        self.txt_fecha_emision.insert(0, datetime.now().strftime("%d/%m/%Y"))
-        self.txt_fecha_emision.pack(side="left", padx=2, pady=10)
-
-        # Gemini API Key
-        lbl_api = ctk.CTkLabel(self.frame_config, text="Gemini API Key:", font=ctk.CTkFont(weight="bold"))
-        lbl_api.pack(side="left", padx=(10, 2), pady=10)
-
-        self.txt_api_key = ctk.CTkEntry(
-            self.frame_config,
-            placeholder_text="Opcional...",
-            show="*",
-            width=180
-        )
-        self.txt_api_key.pack(side="left", padx=2, pady=10, fill="x", expand=True)
+        if TIENE_TKCALENDAR:
+            self.picker_fecha = DateEntry(
+                self.frame_config,
+                width=12,
+                background='#1f4e78',
+                foreground='white',
+                bordercolor='#1f4e78',
+                headersbackground='#1f4e78',
+                headersforeground='white',
+                date_pattern='dd/mm/yyyy',
+                font=('Segoe UI', 10)
+            )
+            self.picker_fecha.pack(side="left", padx=5, pady=10)
+        else:
+            # Fallback en caso de no tener tkcalendar instalado
+            self.picker_fecha = ctk.CTkEntry(self.frame_config, width=120)
+            self.picker_fecha.insert(0, datetime.now().strftime("%d/%m/%Y"))
+            self.picker_fecha.pack(side="left", padx=5, pady=10)
 
         self.frame_kpis = ctk.CTkFrame(self.tab_reportes, fg_color="transparent")
         self.frame_kpis.pack(padx=10, pady=10, fill="x")
@@ -167,6 +175,12 @@ class AppUIPPE(ctk.CTk):
         self.txt_log.pack(padx=10, pady=(2, 10), fill="both", expand=True)
         
         self.log("Sistema inicializado correctamente. En espera de archivo de insumo...")
+
+    def obtener_fecha_seleccionada(self):
+        """Obtiene la fecha formateada en cadena DD/MM/YYYY según el componente activo."""
+        if TIENE_TKCALENDAR and isinstance(self.picker_fecha, DateEntry):
+            return self.picker_fecha.get_date().strftime("%d/%m/%Y")
+        return self.picker_fecha.get().strip()
 
     def procesar_guardado_captura(self, df_captura, trimestre_num):
         try:
@@ -235,8 +249,10 @@ class AppUIPPE(ctk.CTk):
         ext = os.path.splitext(self.archivo_seleccionado)[1].lower()
         trimestre_num = int(self.combo_trimestre_reporte.get()[0])
         anio_sel = int(self.combo_anio.get())
-        fecha_emision = self.txt_fecha_emision.get().strip()
-        api_key = self.txt_api_key.get().strip()
+        fecha_emision = self.obtener_fecha_seleccionada()
+
+        # Cargar API key directamente desde las variables del entorno (.env)
+        api_key = os.getenv("GEMINI_API_KEY", "").strip()
 
         self.log("----------------------------------------")
         self.log(f"Iniciando procesamiento de metas ({trimestre_num}° Trimestre {anio_sel})...")
