@@ -1,5 +1,6 @@
 import os
 import re
+from datetime import datetime
 import pandas as pd
 import docx
 from docx import Document
@@ -19,10 +20,7 @@ def aplicar_sombreado(celda, color_hex):
 
 
 def corregir_ajuste_tabla(tabla):
-    """
-    Fuerza a la tabla a estar 'En línea con el texto' y centrada,
-    eliminando superposiciones (tblOverlap) para evitar desbordamientos.
-    """
+    """Fuerza a la tabla a estar 'En línea con el texto' y centrada, eliminando superposiciones."""
     tblPr = tabla._tbl.tblPr
     tblOverlap = tblPr.find(qn('w:tblOverlap'))
     if tblOverlap is not None:
@@ -31,10 +29,7 @@ def corregir_ajuste_tabla(tabla):
 
 
 def agregar_parrafo_con_markdown(doc_o_celda, texto_markdown):
-    """
-    Convierte sintaxis básica de Markdown (**negrita**, *cursiva*) 
-    en formato nativo de Word dentro de un párrafo estructurado.
-    """
+    """Convierte sintaxis básica de Markdown (**negrita**, *cursiva*) en formato nativo de Word."""
     p = doc_o_celda.add_paragraph()
     p.paragraph_format.line_spacing = 1.15
     p.paragraph_format.space_after = Pt(4)
@@ -59,10 +54,6 @@ def agregar_parrafo_con_markdown(doc_o_celda, texto_markdown):
 
 
 def validar_plantilla_word(ruta_plantilla, marcadores_requeridos=None):
-    """
-    Inspecciona la plantilla Word antes del procesamiento para asegurar que existe y
-    contiene los marcadores requeridos ({TITULO_REPORTE}, {TRIMESTRE}, {ANALISIS_CUALITATIVO}).
-    """
     if marcadores_requeridos is None:
         marcadores_requeridos = ["{TITULO_REPORTE}", "{TRIMESTRE}", "{ANALISIS_CUALITATIVO}"]
 
@@ -71,7 +62,6 @@ def validar_plantilla_word(ruta_plantilla, marcadores_requeridos=None):
 
     try:
         doc = docx.Document(ruta_plantilla)
-        
         texto_completo = []
         for p in doc.paragraphs:
             texto_completo.append(p.text)
@@ -84,7 +74,7 @@ def validar_plantilla_word(ruta_plantilla, marcadores_requeridos=None):
         faltantes = [m for m in marcadores_requeridos if m not in contenido]
         
         if faltantes:
-            return False, f"Atención: Faltan los siguientes marcadores en la plantilla Word: {', '.join(faltantes)}"
+            return False, f"Atención: Faltan marcadores en la plantilla Word: {', '.join(faltantes)}"
             
         return True, "Plantilla válida."
         
@@ -93,7 +83,7 @@ def validar_plantilla_word(ruta_plantilla, marcadores_requeridos=None):
 
 
 class GeneradorReporte:
-    def __init__(self, dataframe_procesado=None, ruta_plantilla_word=None, trimestre_num=2):
+    def __init__(self, dataframe_procesado=None, ruta_plantilla_word=None, trimestre_num=2, anio=None, fecha_emision=None):
         if dataframe_procesado is not None and isinstance(dataframe_procesado, pd.DataFrame):
             self.df = dataframe_procesado
         else:
@@ -101,14 +91,14 @@ class GeneradorReporte:
             
         self.ruta_plantilla = ruta_plantilla_word
         self.trimestre_num = trimestre_num
+        self.anio = anio if anio else datetime.now().year
+        self.fecha_emision = fecha_emision if fecha_emision else datetime.now().strftime("%d/%m/%Y")
 
-        # Colores institucionales OPERAGUA / UIPPE
-        self.AZUL_OPERAGUA = RGBColor(31, 78, 120)  # #1F4E78
-        self.GRIS_TEXTO = RGBColor(89, 89, 89)      # #595959
+        self.AZUL_OPERAGUA = RGBColor(31, 78, 120)
+        self.GRIS_TEXTO = RGBColor(89, 89, 89)
         self.HEX_AZUL = "1F4E78"
         self.HEX_GRIS_CLARO = "F2F2F2"
 
-        # Matriz de rangos y semáforos PbRM / OSFEM
         self.SEMAFORO_PBRM = {
             'C': {'nombre': 'Crítico', 'rango': '< 70.0%', 'hex': 'E74C3C'},
             'D': {'nombre': 'Deficiente', 'rango': '70.0% - 84.9%', 'hex': 'E67E22'},
@@ -118,18 +108,13 @@ class GeneradorReporte:
         }
 
     def exportar_excel_consolidado(self, prefijo="Reporte_UIPPE_Consolidado"):
-        """Genera una copia en limpio del DataFrame procesado en formato Excel."""
-        prefijo_trim = f"{prefijo}_T{self.trimestre_num}"
+        prefijo_trim = f"{prefijo}_T{self.trimestre_num}_{self.anio}"
         ruta_salida = obtener_nombre_salida(prefix=prefijo_trim, extension="xlsx")
         with pd.ExcelWriter(ruta_salida, engine="openpyxl") as writer:
             self.df.to_excel(writer, index=False, sheet_name="Reporte UIPPE")
         return ruta_salida
 
     def construir_tabla_matriz_itsp(self, doc, titulo_subseccion, datos_unidades, estatus_global, pct_global):
-        """
-        Construye la matriz oficial de 7 columnas para Metas e Indicadores:
-        [ Unidad Administrativa | C | D | R | A | S | VALORACIÓN % ]
-        """
         p_sub = doc.add_paragraph()
         p_sub.paragraph_format.space_before = Pt(6)
         p_sub.paragraph_format.space_after = Pt(2)
@@ -141,10 +126,7 @@ class GeneradorReporte:
         corregir_ajuste_tabla(tabla)
         tabla.style = 'Table Grid'
 
-        # Anchos en pulgadas (Suma total = 6.5", ideal para hoja Carta con 1" de margen)
         anchos = [3.0, 0.5, 0.5, 0.5, 0.5, 0.5, 1.0]
-
-        # Configurar Encabezados
         hdr_cells = tabla.rows[0].cells
         headers = ["Unidad Administrativa", "C", "D", "R", "A", "S", "VALORACIÓN %"]
         
@@ -159,7 +141,6 @@ class GeneradorReporte:
                 p.runs[0].font.color.rgb = RGBColor(255, 255, 255)
                 p.runs[0].font.size = Pt(9)
 
-        # Cargar Filas por Unidad Administrativa
         for u in datos_unidades:
             row_cells = tabla.add_row().cells
             row_cells[0].text = str(u.get("unidad", ""))
@@ -180,7 +161,6 @@ class GeneradorReporte:
                 if i > 0:
                     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-        # Fila Final: Totalización de Desempeño
         row_tot = tabla.add_row().cells
         row_tot[0].text = "DESEMPEÑO A NIVEL DE DIRECCIÓN"
         row_tot[1].text = str(estatus_global).upper()
@@ -199,42 +179,45 @@ class GeneradorReporte:
         doc.add_paragraph().paragraph_format.space_after = Pt(6)
 
     def exportar_word_ejecutivo(self, titulo=None, datos_direcciones=None, analisis_cualitativo=None):
-        """
-        Genera el informe Word mezclando la plantilla institucional con las tablas
-        dinámicas de seguimiento por Dirección.
-        """
         if not titulo:
-            titulo = f"INFORME TRIMESTRAL DE SEGUIMIENTO PROGRAMÁTICO (ITSP)\n{self.trimestre_num}° TRIMESTRE 2026"
+            titulo = f"INFORME TRIMESTRAL DE SEGUIMIENTO PROGRAMÁTICO (ITSP)\n{self.trimestre_num}° TRIMESTRE {self.anio}"
 
-        prefijo_salida = f"Reporte_Ejecutivo_ITSP_T{self.trimestre_num}"
+        prefijo_salida = f"Reporte_Ejecutivo_ITSP_T{self.trimestre_num}_{self.anio}"
         ruta_salida = obtener_nombre_salida(prefix=prefijo_salida, extension="docx")
         
-        # Cargar plantilla base o inicializar documento en blanco
         if self.ruta_plantilla and os.path.exists(self.ruta_plantilla):
             doc = Document(self.ruta_plantilla)
         else:
             doc = Document()
 
-        # Ajustar alineación de tablas preexistentes
         for t in doc.tables:
             corregir_ajuste_tabla(t)
 
         mapa_ordinales = {1: "PRIMER", 2: "SEGUNDO", 3: "TERCER", 4: "CUARTO"}
         texto_ordinal = mapa_ordinales.get(self.trimestre_num, "SEGUNDO")
 
-        # Sustitución de marcadores en párrafos existentes
-        analisis_reemplazado = False
-        for p in doc.paragraphs:
-            if "{TITULO_REPORTE}" in p.text:
-                p.text = p.text.replace("{TITULO_REPORTE}", titulo)
-            if "{TRIMESTRE}" in p.text:
-                p.text = p.text.replace("{TRIMESTRE}", f"{self.trimestre_num}° TRIMESTRE")
-            if "SEGUNDO TRIMESTRE" in p.text and texto_ordinal != "SEGUNDO":
-                p.text = p.text.replace("SEGUNDO TRIMESTRE", f"{texto_ordinal} TRIMESTRE")
-            if "2° TRIMESTRE" in p.text and self.trimestre_num != 2:
-                p.text = p.text.replace("2° TRIMESTRE", f"{self.trimestre_num}° TRIMESTRE")
+        # Función auxiliar para reemplazar textos dinámicos de año y fecha
+        def reemplazar_marcadores_texto(texto):
+            texto = texto.replace("{TITULO_REPORTE}", titulo)
+            texto = texto.replace("{TRIMESTRE}", f"{self.trimestre_num}° TRIMESTRE")
+            texto = texto.replace("{ANIO}", str(self.anio))
+            texto = texto.replace("{FECHA_EMISION}", self.fecha_emision)
             
-            # Inyectar análisis cualitativo en el marcador
+            # Reemplazos dinámicos para plantillas con años previos fijos
+            for anio_fijo in ["2026", "2025", "2024"]:
+                if str(self.anio) != anio_fijo:
+                    texto = texto.replace(anio_fijo, str(self.anio))
+                    
+            if "SEGUNDO TRIMESTRE" in texto and texto_ordinal != "SEGUNDO":
+                texto = texto.replace("SEGUNDO TRIMESTRE", f"{texto_ordinal} TRIMESTRE")
+            if "2° TRIMESTRE" in texto and self.trimestre_num != 2:
+                texto = texto.replace("2° TRIMESTRE", f"{self.trimestre_num}° TRIMESTRE")
+            return texto
+
+        analisis_reemplazado = False
+        
+        # Sustitución en Párrafos
+        for p in doc.paragraphs:
             if "{ANALISIS_CUALITATIVO}" in p.text:
                 p.text = ""
                 if analisis_cualitativo:
@@ -242,10 +225,19 @@ class GeneradorReporte:
                     for l in lineas:
                         agregar_parrafo_con_markdown(doc, l)
                 analisis_reemplazado = True
+            else:
+                p.text = reemplazar_marcadores_texto(p.text)
 
-        # Inyectar Análisis Cualitativo al final si no había marcador
+        # Sustitución en Tablas preexistentes de la plantilla
+        for t in doc.tables:
+            for fila in t.rows:
+                for celda in fila.cells:
+                    for p in celda.paragraphs:
+                        p.text = reemplazar_marcadores_texto(p.text)
+
+        # Inyectar Análisis Cualitativo si no existía el marcador en la plantilla
         if analisis_cualitativo and not analisis_reemplazado:
-            h_analisis = doc.add_heading(f"Análisis Cualitativo Ejecutivo - {self.trimestre_num}° Trimestre", level=2)
+            h_analisis = doc.add_heading(f"Análisis Cualitativo Ejecutivo - {self.trimestre_num}° Trimestre {self.anio}", level=2)
             if h_analisis.runs:
                 h_analisis.runs[0].font.color.rgb = self.AZUL_OPERAGUA
                 h_analisis.runs[0].font.size = Pt(13)
@@ -254,7 +246,7 @@ class GeneradorReporte:
             for l in lineas:
                 agregar_parrafo_con_markdown(doc, l)
 
-        # Validación segura de datos_direcciones (Evita evaluación ambigua de DataFrames)
+        # Renderizado de Tablas Multidirección ITSP
         tiene_direcciones = False
         lista_direcciones = []
 
@@ -288,7 +280,6 @@ class GeneradorReporte:
             tiene_direcciones = True
             lista_direcciones = datos_direcciones
 
-        # Renderizado de Tablas Multidirección ITSP
         if tiene_direcciones:
             h_res = doc.add_heading("RESULTADOS DEL SEGUIMIENTO PROGRAMÁTICO", level=1)
             if h_res.runs:
@@ -319,7 +310,6 @@ class GeneradorReporte:
                         pct_global=dir_data.get("valoracion_indicadores_global", 0.0)
                     )
 
-        # Guardar archivo
         os.makedirs(os.path.dirname(ruta_salida), exist_ok=True)
         doc.save(ruta_salida)
         return ruta_salida

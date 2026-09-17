@@ -28,8 +28,8 @@ class InyectorExcelPbRM:
         
         :param df_captura: DataFrame con columnas ['CLAVE', 'AVANCE', 'JUSTIFICACION']
         :param trimestre: Número del trimestre (1, 2, 3 o 4)
-        :param ruta_salida: Ruta donde se guardará el nuevo archivo. Si es None, genera una en 'salidas/'
-        :return: Ruta del archivo generado
+        :param ruta_salida: Ruta donde se guardará el nuevo archivo. Si es None, sobreescribe la plantilla maestra.
+        :return: Ruta del archivo generado/actualizado
         """
         if trimestre not in self.MAPEO_COLUMNAS:
             raise ValueError(f"Trimestre {trimestre} inválido. Debe ser 1, 2, 3 o 4.")
@@ -54,8 +54,6 @@ class InyectorExcelPbRM:
 
         # Recorrer filas a partir de la fila 4 (donde inician los registros de metas)
         for row in range(4, ws_metas.max_row + 1):
-            # La columna 1 es la CLAVE (o fórmula de concatenación)
-            # Para coincidir, derivamos la clave usando ESTRUCTURA (Col 7) + # (Col 12)
             val_est = ws_metas.cell(row=row, column=7).value
             val_num = ws_metas.cell(row=row, column=12).value
 
@@ -78,14 +76,11 @@ class InyectorExcelPbRM:
 
                     registros_actualizados += 1
 
-        # Definir ruta de salida si no se proporcionó
-        if not ruta_salida:
-            os.makedirs("salidas", exist_ok=True)
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            ruta_salida = os.path.join("salidas", f"EVALUACION_PBRM_T{trimestre}_{timestamp}.xlsx")
+        # Si no se define una ruta explícita, se guarda sobreescritura directa en la plantilla maestra
+        destino = ruta_salida if ruta_salida else self.ruta_plantilla
 
-        wb.save(ruta_salida)
-        print(f"✔ Exito: Se inyectaron {registros_actualizados} metas en Trimestre {trimestre}.")
-        print(f"📁 Archivo generado: {ruta_salida}")
+        wb.save(destino)
+        print(f"✔ Éxito: Se inyectaron {registros_actualizados} metas en Trimestre {trimestre}.")
+        print(f"📁 Archivo actualizado: {destino}")
 
-        return ruta_salida
+        return destino

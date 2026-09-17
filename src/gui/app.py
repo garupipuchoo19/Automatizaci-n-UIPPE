@@ -1,5 +1,6 @@
 import os
 import threading
+from datetime import datetime
 import customtkinter as ctk
 from tkinter import filedialog, messagebox
 
@@ -23,17 +24,15 @@ class AppUIPPE(ctk.CTk):
         super().__init__()
 
         self.title("Sistema de Automatización y Evaluación PbRM - UIPPE OPERAGUA")
-        self.geometry("1150x780")
-        self.minsize(900, 650)
+        self.geometry("1150x820")
+        self.minsize(950, 680)
 
         self.archivo_seleccionado = None
-        self.ruta_excel_maestro = os.path.join(ENTRADAS_DIR, "CUAUTITLAN METAS E INDICADORES 2026.xlsx")
+        self.ruta_excel_maestro = os.path.join(ENTRADAS_DIR, f"CUAUTITLAN METAS E INDICADORES {datetime.now().year}.xlsx")
         self.ruta_plantilla_word = os.path.join(PLANTILLAS_DIR, "Plantilla_Oficial_UIPPE.docx")
 
-        # Instanciar el motor backend de inyección
         self.inyector = InyectorExcelPbRM(self.ruta_excel_maestro)
 
-        # Encabezado Institucional Principal
         self.lbl_titulo = ctk.CTkLabel(
             self, 
             text="OPERAGUA Cuautitlán Izcalli - UIPPE", 
@@ -49,14 +48,12 @@ class AppUIPPE(ctk.CTk):
         )
         self.lbl_subtitulo.pack(padx=20, pady=(0, 10))
 
-        # --- NAVEGACIÓN POR PESTAÑAS (TABVIEW) ---
         self.tabview = ctk.CTkTabview(self)
         self.tabview.pack(padx=20, pady=(0, 15), fill="both", expand=True)
 
         self.tab_captura = self.tabview.add("📝 Captura Rápida por Área")
         self.tab_reportes = self.tabview.add("📊 Consolidación y Reportes UIPPE")
 
-        # --- PESTAÑA 1: CAPTURA RÁPIDA ---
         self.vista_captura = VistaCapturaRapida(
             parent=self.tab_captura,
             ruta_excel_maestro=self.ruta_excel_maestro,
@@ -64,11 +61,9 @@ class AppUIPPE(ctk.CTk):
         )
         self.vista_captura.pack(fill="both", expand=True)
 
-        # --- PESTAÑA 2: REPORTEADOR Y CONSOLIDACIÓN ---
         self.construir_pestaña_reportes()
 
     def construir_pestaña_reportes(self):
-        """Construye la vista de carga de insumos, métricas y log de reportes."""
         self.frame_file = ctk.CTkFrame(self.tab_reportes)
         self.frame_file.pack(padx=10, pady=5, fill="x")
 
@@ -87,40 +82,60 @@ class AppUIPPE(ctk.CTk):
         )
         self.lbl_archivo.pack(side="left", padx=10, fill="x", expand=True)
 
-        # --- CONFIGURACIÓN DE PARÁMETROS Y API KEY ---
+        # --- CONFIGURACIÓN DE PARÁMETROS, FECHAS Y API KEY ---
         self.frame_config = ctk.CTkFrame(self.tab_reportes)
         self.frame_config.pack(padx=10, pady=5, fill="x")
 
-        lbl_trim = ctk.CTkLabel(
-            self.frame_config, 
-            text="Trimestre:", 
-            font=ctk.CTkFont(weight="bold")
-        )
-        lbl_trim.pack(side="left", padx=(15, 5), pady=10)
+        lbl_trim = ctk.CTkLabel(self.frame_config, text="Trimestre:", font=ctk.CTkFont(weight="bold"))
+        lbl_trim.pack(side="left", padx=(10, 2), pady=10)
 
         self.combo_trimestre_reporte = ctk.CTkComboBox(
             self.frame_config,
             values=["1° TRIMESTRE", "2° TRIMESTRE", "3° TRIMESTRE", "4° TRIMESTRE"],
             state="readonly",
-            width=140
+            width=125
         )
         self.combo_trimestre_reporte.set("1° TRIMESTRE")
-        self.combo_trimestre_reporte.pack(side="left", padx=5, pady=10)
+        self.combo_trimestre_reporte.pack(side="left", padx=2, pady=10)
 
-        lbl_api = ctk.CTkLabel(
-            self.frame_config, 
-            text="Gemini API Key:", 
-            font=ctk.CTkFont(weight="bold")
+        # Selector de Año Dinámico
+        lbl_anio = ctk.CTkLabel(self.frame_config, text="Año:", font=ctk.CTkFont(weight="bold"))
+        lbl_anio.pack(side="left", padx=(10, 2), pady=10)
+
+        anio_actual = str(datetime.now().year)
+        anios_opciones = [str(a) for a in range(int(anio_actual) - 2, int(anio_actual) + 3)]
+        
+        self.combo_anio = ctk.CTkComboBox(
+            self.frame_config,
+            values=anios_opciones,
+            state="readonly",
+            width=90
         )
-        lbl_api.pack(side="left", padx=(20, 5), pady=10)
+        self.combo_anio.set(anio_actual)
+        self.combo_anio.pack(side="left", padx=2, pady=10)
+
+        # Campo de Fecha de Emisión
+        lbl_fecha = ctk.CTkLabel(self.frame_config, text="Fecha Emisión:", font=ctk.CTkFont(weight="bold"))
+        lbl_fecha.pack(side="left", padx=(10, 2), pady=10)
+
+        self.txt_fecha_emision = ctk.CTkEntry(
+            self.frame_config,
+            width=105
+        )
+        self.txt_fecha_emision.insert(0, datetime.now().strftime("%d/%m/%Y"))
+        self.txt_fecha_emision.pack(side="left", padx=2, pady=10)
+
+        # Gemini API Key
+        lbl_api = ctk.CTkLabel(self.frame_config, text="Gemini API Key:", font=ctk.CTkFont(weight="bold"))
+        lbl_api.pack(side="left", padx=(10, 2), pady=10)
 
         self.txt_api_key = ctk.CTkEntry(
             self.frame_config,
-            placeholder_text="Pega tu clave de Google AI Studio aquí...",
+            placeholder_text="Opcional...",
             show="*",
-            width=280
+            width=180
         )
-        self.txt_api_key.pack(side="left", padx=5, pady=10, fill="x", expand=True)
+        self.txt_api_key.pack(side="left", padx=2, pady=10, fill="x", expand=True)
 
         self.frame_kpis = ctk.CTkFrame(self.tab_reportes, fg_color="transparent")
         self.frame_kpis.pack(padx=10, pady=10, fill="x")
@@ -154,16 +169,20 @@ class AppUIPPE(ctk.CTk):
         self.log("Sistema inicializado correctamente. En espera de archivo de insumo...")
 
     def procesar_guardado_captura(self, df_captura, trimestre_num):
-        """Callback invocado por VistaCapturaRapida para inyectar datos en el Excel maestro."""
         try:
-            ruta_generada = self.inyector.inyectar_captura(df_captura, trimestre=trimestre_num)
-            
+            ruta_generada = self.inyector.inyectar_captura(
+                df_captura, 
+                trimestre=trimestre_num, 
+                ruta_salida=self.ruta_excel_maestro
+            )
+            self.vista_captura.cargar_datos_base()
+            self.vista_captura.actualizar_tabla_metas()
+
             messagebox.showinfo(
                 "¡Inyección Exitosa!", 
-                f"Se actualizaron {len(df_captura)} metas del Trimestre {trimestre_num} correctamente.\n\n"
-                f"Archivo generado en:\n{ruta_generada}"
+                f"Se actualizaron {len(df_captura)} metas del Trimestre {trimestre_num} correctamente."
             )
-            self.log(f"✔ Captura inyectada exitosamente para Trimestre {trimestre_num} ({len(df_captura)} metas).")
+            self.log(f"✔ Captura guardada permanentemente en plantilla maestra ({len(df_captura)} metas en T{trimestre_num}).")
         except Exception as e:
             messagebox.showerror("Error de Inyección", f"Ocurrió un problema al guardar en Excel:\n{e}")
             self.log(f"ERROR EN INYECCIÓN: {str(e)}")
@@ -198,38 +217,37 @@ class AppUIPPE(ctk.CTk):
             self.log(f"Archivo seleccionado: {nombre_base}")
 
     def ejecutar_procesamiento(self):
-        """Lanza la ejecución en un hilo secundario para evitar congelar la interfaz."""
         if not self.archivo_seleccionado:
             return
 
-        # 1. Validar plantilla Word antes de empezar
         valida, msj = validar_plantilla_word(self.ruta_plantilla_word)
         if not valida:
             messagebox.showwarning("Validación de Plantilla", msj)
             self.log(f"⚠️ {msj}")
 
-        # 2. Bloquear botón y actualizar estado visual
         self.btn_procesar.configure(state="disabled", text="⌛ Procesando... Por favor espere")
         self.kpi_estado.actualizar("Procesando...")
 
-        # 3. Lanzar procesamiento en segundo plano
         hilo = threading.Thread(target=self._tarea_procesamiento_background, daemon=True)
         hilo.start()
 
     def _tarea_procesamiento_background(self):
-        """Lógica pesada ejecutada fuera del hilo de la interfaz gráfica."""
         ext = os.path.splitext(self.archivo_seleccionado)[1].lower()
         trimestre_num = int(self.combo_trimestre_reporte.get()[0])
+        anio_sel = int(self.combo_anio.get())
+        fecha_emision = self.txt_fecha_emision.get().strip()
         api_key = self.txt_api_key.get().strip()
 
         self.log("----------------------------------------")
-        self.log(f"Iniciando procesamiento de metas programadas para el {trimestre_num}° Trimestre...")
+        self.log(f"Iniciando procesamiento de metas ({trimestre_num}° Trimestre {anio_sel})...")
 
         try:
             if ext in [".xlsx", ".xls"]:
                 ruta_salida, hallazgos = ProcesadorUIPPE.procesar_archivo_excel(
                     ruta_excel=self.archivo_seleccionado,
                     trimestre_num=trimestre_num,
+                    anio=anio_sel,
+                    fecha_emision=fecha_emision,
                     solo_programadas=True,
                     api_key_gemini=api_key if len(api_key) > 0 else None
                 )
@@ -237,8 +255,7 @@ class AppUIPPE(ctk.CTk):
                 for h in hallazgos:
                     self.log(f"  • {h}")
 
-                # Notificar éxito a la interfaz
-                self.after(0, self._finalizar_procesamiento, True, f"Reporte UIPPE del {trimestre_num}° Trimestre generado correctamente:\n\n{os.path.basename(ruta_salida)}", ruta_salida, "Completado")
+                self.after(0, self._finalizar_procesamiento, True, f"Reporte UIPPE del {trimestre_num}° Trimestre {anio_sel} generado correctamente:\n\n{os.path.basename(ruta_salida)}", ruta_salida, "Completado")
 
         except ValueError as val_err:
             self.after(0, self._finalizar_procesamiento, False, str(val_err), None, "Incongruente")
@@ -247,7 +264,6 @@ class AppUIPPE(ctk.CTk):
             self.after(0, self._finalizar_procesamiento, False, str(e), None, "Error")
 
     def _finalizar_procesamiento(self, exito, mensaje, ruta_salida=None, estado_kpi="Completado"):
-        """Restaura los controles de la interfaz y muestra el resultado en el hilo principal."""
         self.btn_procesar.configure(state="normal", text="▶ Ejecutar Validación y Generar Reporte")
         self.kpi_estado.actualizar(estado_kpi)
 

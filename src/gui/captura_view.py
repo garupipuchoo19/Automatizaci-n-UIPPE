@@ -53,7 +53,7 @@ class VistaCapturaRapida(ctk.CTkFrame):
         self.combo_trimestre = ctk.CTkComboBox(
             frame_filtros, 
             values=["1° TRIMESTRE", "2° TRIMESTRE", "3° TRIMESTRE", "4° TRIMESTRE"],
-            state="readonly",  # Bloquea la edición de texto manual
+            state="readonly",
             command=lambda _: self.actualizar_tabla_metas()
         )
         self.combo_trimestre.set("1° TRIMESTRE")
@@ -66,7 +66,7 @@ class VistaCapturaRapida(ctk.CTkFrame):
             frame_filtros, 
             values=deps_unicas,
             width=220,
-            state="readonly",  # Bloquea la edición de texto manual
+            state="readonly",
             command=self.al_cambiar_dependencia
         )
         self.combo_dep.grid(row=0, column=3, padx=10, pady=10)
@@ -77,7 +77,7 @@ class VistaCapturaRapida(ctk.CTkFrame):
             frame_filtros, 
             values=[],
             width=250,
-            state="readonly",  # Bloquea la edición de texto manual
+            state="readonly",
             command=lambda _: self.actualizar_tabla_metas()
         )
         self.combo_area.grid(row=0, column=5, padx=10, pady=10)
@@ -265,3 +265,5 @@ class VistaCapturaRapida(ctk.CTkFrame):
             self.al_guardar_callback(df_captura, trimestre_num)
         else:
             messagebox.showinfo("Captura Registrada", f"Se capturaron {len(df_captura)} metas exitosamente para el Trimestre {trimestre_num}.")
+            self.cargar_datos_base()
+            self.actualizar_tabla_metas()

@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from src.core.lector_excel import LectorExcel
 from src.core.validador_reg import ValidadorReglamento
 from src.core.generador_doc import GeneradorReporte
@@ -15,11 +16,10 @@ class ProcesadorUIPPE:
     """Orquesta la lectura de Excel, validación de metas, generación con Gemini y exportación Word."""
 
     @staticmethod
-    def procesar_archivo_excel(ruta_excel, trimestre_num=2, ruta_plantilla_word=None, solo_programadas=True, api_key_gemini=None):
-        """
-        Procesa el archivo maestro o departamental para el trimestre especificado.
-        :param api_key_gemini: Clave de API para activar la redacción cualitativa ejecutiva con Gemini.
-        """
+    def procesar_archivo_excel(ruta_excel, trimestre_num=2, anio=None, fecha_emision=None, ruta_plantilla_word=None, solo_programadas=True, api_key_gemini=None):
+        if not anio:
+            anio = datetime.now().year
+
         mapa_cols_avance = {
             1: '% AVANCE 1er TRIM',
             2: '% AVANCE 2o. TRIM',
@@ -36,16 +36,19 @@ class ProcesadorUIPPE:
         col_avance_sel = mapa_cols_avance.get(trimestre_num, '% AVANCE 2o. TRIM')
         col_prog_sel = mapa_cols_prog.get(trimestre_num, 'PROGRAMADA 2o. TRIM')
 
-        # Resolver la plantilla Word
+        # Resolver la plantilla Word de forma dinámica según el año seleccionado
         if not ruta_plantilla_word:
-            nombre_plantilla = f"ITSP {trimestre_num} TRIMESTRE 2026.docx"
+            nombre_plantilla = f"ITSP {trimestre_num} TRIMESTRE {anio}.docx"
             plantilla_especifica = os.path.join(PLANTILLAS_DIR, nombre_plantilla)
-            ruta_plantilla_word = plantilla_especifica if os.path.exists(plantilla_especifica) else os.path.join(PLANTILLAS_DIR, "ITSP 2 TRIMESTRE 2026.docx")
+            if os.path.exists(plantilla_especifica):
+                ruta_plantilla_word = plantilla_especifica
+            else:
+                ruta_plantilla_word = os.path.join(PLANTILLAS_DIR, "Plantilla_Oficial_UIPPE.docx")
 
         # 0. Instanciar Motor de Excel
         engine = EngineExcelUIPPE(ruta_excel)
 
-        # 1. [Opción 1] Validar que existan avances capturados en el trimestre (Lógica Determinística)
+        # 1. Validar captura del trimestre
         engine.validar_captura_trimestre(trimestre_num)
 
         # 2. Leer Excel maestro
@@ -62,7 +65,7 @@ class ProcesadorUIPPE:
             if col_prog_sel in df_metas.columns:
                 df_metas = df_metas[df_metas[col_prog_sel].notna() & (df_metas[col_prog_sel] > 0)].copy()
 
-        # 4. Validar metas sobre el subconjunto del trimestre
+        # 4. Validar metas
         validador = ValidadorReglamento(df_metas)
         
         if col_avance_sel not in df_metas.columns:
@@ -76,12 +79,11 @@ class ProcesadorUIPPE:
         col_semaforo = f"{trimestre_num}°_SEMAFORO"
         df_resumen = engine.procesar_hoja_metas(col_semaforo=col_semaforo)
 
-        # 6. [Opción 3] Generar Análisis Cualitativo con Gemini API si se provee la API Key (Alimentado con Contexto Histórico)
+        # 6. Generar Análisis Cualitativo con Gemini API
         analisis_narrativo = None
         if api_key_gemini:
             try:
                 if df_resumen is not None and not df_resumen.empty:
-                    # Extraer el texto acumulado de los Word en respaldos/contexto_word/
                     contexto_historico = obtener_contexto_historico_word()
                     
                     analyst = GeminiAnalyst(api_key=api_key_gemini)
@@ -96,21 +98,23 @@ class ProcesadorUIPPE:
             except Exception as e:
                 hallazgos.append(f"⚠️ No se pudo generar la narrativa con Gemini: {str(e)}")
 
-        # 7. Generar el reporte consolidado en Word
+        # 7. Generar el reporte consolidado en Word pasando Año y Fecha de Emisión
         generador = GeneradorReporte(
             dataframe_procesado=df_procesado,
             ruta_plantilla_word=ruta_plantilla_word,
-            trimestre_num=trimestre_num
+            trimestre_num=trimestre_num,
+            anio=anio,
+            fecha_emision=fecha_emision
         )
         
-        titulo_reporte = f"EVALUACIÓN DEL CUMPLIMIENTO PROGRAMÁTICO DE METAS - {trimestre_num}° TRIMESTRE 2026"
+        titulo_reporte = f"EVALUACIÓN DEL CUMPLIMIENTO PROGRAMÁTICO DE METAS - {trimestre_num}° TRIMESTRE {anio}"
         ruta_doc = generador.exportar_word_ejecutivo(
             titulo=titulo_reporte,
             datos_direcciones=df_resumen,
             analisis_cualitativo=analisis_narrativo
         )
 
-        # 8. Guardar copias automáticas en respaldos (historico_salidas y contexto_word)
+        # 8. Guardar copias automáticas en respaldos
         ruta_backup, ruta_contexto = procesar_respaldos_salida(ruta_doc)
         if ruta_backup:
             hallazgos.append("✔ Respaldos sincronizados en histórico y base de contexto Word.")
