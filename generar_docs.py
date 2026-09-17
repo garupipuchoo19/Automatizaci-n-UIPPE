@@ -68,7 +68,8 @@ def crear_documentacion():
         "y redacción de informes del Presupuesto basado en Resultados Municipal (PbRM) en OPERAGUA Cuautitlán Izcalli.\n\n"
         "Evolución del Proyecto:\n"
         "• Funcionalidades Base (Iniciales): Captura rápida de avances por Dirección/Área, extracción estructurada desde archivos Excel/PDF y semaforización básica de cumplimiento.\n"
-        "• Funcionalidades Actuales (Fase 2): Inyección directa de datos en sábanas sin romper fórmulas integradas, generación de análisis cualitativos ejecutivos vía Google Gemini API "
+        "• Funcionalidades Actuales (Fase 2): Inyección directa de datos en sábanas sin romper fórmulas integradas, reemplazo directo de Sábana Maestra desde la GUI para nuevos ciclos fiscales, "
+        "selección estilizada de fechas vía CTkDatePicker, carga automática de credenciales de IA (.env), generación de análisis cualitativos ejecutivos vía Google Gemini API "
         "con lectura de contexto histórico (.docx) de hasta 5 trimestres, corrección de ambigüedades en DataFrames de Pandas y un ciclo automatizado de rotación/depuración de almacenamiento."
     )
     p_body1.paragraph_format.line_spacing = 1.15
@@ -86,9 +87,9 @@ def crear_documentacion():
         ("Componente", "Especificación / Versión"),
         ("Sistema Operativo", "Windows 10 / 11 (64-bit)"),
         ("Lenguaje de Programación", "Python 3.11+"),
-        ("Interfaz Gráfica (GUI)", "CustomTkinter (Navegación por pestañas, Captura y KPIs)"),
-        ("Procesamiento de Archivos", "Pandas, openpyxl, python-docx, pdfplumber"),
-        ("Inteligencia Artificial", "Google Gemini API (Análisis cualitativo con contexto histórico)"),
+        ("Interfaz Gráfica (GUI)", "CustomTkinter + tkcalendar (DatePicker, Pestañas, Captura y KPIs)"),
+        ("Procesamiento de Archivos", "Pandas, openpyxl, python-docx, pdfplumber, shutil"),
+        ("Inteligencia Artificial", "Google Gemini API (Análisis cualitativo con contexto histórico y credenciales .env)"),
         ("Gestión de Almacenamiento", "Rotación y depuración automática (Máx. 5 reportes en contexto, 10 en historial)"),
         ("Compilación Binaria", "Nuitka / PyInstaller (Ejecutable Standalone .exe)")
     ]
@@ -159,15 +160,15 @@ def crear_documentacion():
 
     modulos = [
         ("main.py", "Punto de entrada principal. Inicializa carpetas clave y lanza la interfaz gráfica CustomTkinter."),
-        ("test_prueba.py", "Script de prueba de integración y validación CLI por consola."),
+        ("generar_docs.py", "Generador dinámico en ejecución aislada para actualizar la Documentación Técnica Oficial en Word."),
         ("src/controllers/procesador_uippe.py", "Orquestador general que coordina el Engine, Validador, IA y Generadores."),
-        ("src/gui/app.py", "Ventana principal con navegación por pestañas (Captura + Consolidador) y consola de bitácora."),
+        ("src/gui/app.py", "Ventana principal con gestión de ciclo fiscal, actualización de Sábana Maestra, selector CTkDatePicker y consola de bitácora."),
         ("src/gui/captura_view.py", "VistaCapturaRapida para el ingreso de avances y justificaciones por Dirección y Área."),
         ("src/gui/components.py", "Componentes reutilizables de UI (Tarjetas KPI y Opciones de Exportación)."),
         ("src/core/excel_engine.py", "Motor de lectura, recálculo de sábanas y evaluación consolidada por área."),
         ("src/core/generador_doc.py", "Generador de reportes en Word (.docx) con inyección sintáctica limpia, matrices por Dirección e IA."),
         ("src/core/generador_excel_pbrm.py", "Motor de inyección directa de avances y justificaciones en Excel sin romper fórmulas."),
-        ("src/core/integracion_gemini.py", "Módulo de conexión con Gemini API para redacción de análisis cualitativo con contexto acumulado."),
+        ("src/core/integracion_gemini.py", "Módulo de conexión con Gemini API mediante entorno seguro (.env) para redacción de análisis cualitativo con contexto acumulado."),
         ("src/core/lector_excel.py", "Lectura y parsing especializado de hojas de trabajo de Excel sin ambigüedades en DataFrames."),
         ("src/core/lector_pdf.py", "Extracción de tablas y texto estructurado desde archivos PDF."),
         ("src/core/validador_reg.py", "Clasificador de desempeño por semáforo oficial PbRM/OSFEM (C, D, R, A, S)."),
@@ -192,7 +193,7 @@ def crear_documentacion():
         "1. Memoria Contextual (respaldos/contexto_word/): Conserva un tope estrictamente configurado de 5 reportes (.docx) "
         "(correspondientes a los 4 trimestres del año actual + 1 del año previo), eliminando automáticamente las versiones excedentes más antiguas.\n"
         "2. Histórico de Salidas (respaldos/historico_salidas/): Mantiene un límite de 10 versiones para respaldo de seguridad sin duplicar espacio en disco.\n"
-        "3. Exportación Externa: En caso de requerir un archivo permanente para archivo muerto, el usuario puede copiar el reporte a una ruta externa."
+        "3. Actualización de Plantilla Maestra: Permite el reemplazo interactivo mediante GUI manteniendo una nomenclatura dinámica de acuerdo al ciclo seleccionado."
     )
     p_maint.paragraph_format.line_spacing = 1.15
     p_maint.paragraph_format.space_after = Pt(12)
@@ -201,7 +202,7 @@ def crear_documentacion():
     h6_err = doc.add_heading("6. Matriz de Pruebas y Control de Errores", level=1)
     h6_err.runs[0].font.color.rgb = AZUL_OPERAGUA
 
-    tabla_err = doc.add_table(rows=6, cols=3)
+    tabla_err = doc.add_table(rows=7, cols=3)
     corregir_ajuste_tabla(tabla_err)
     tabla_err.style = 'Table Grid'
 
@@ -211,6 +212,7 @@ def crear_documentacion():
         ("Evaluación Ambigua en Pandas", "Uso directo de condiciones booleanas (if df:) sobre DataFrames", "Uso explícito de .empty e isinstance() para validación lógica de matrices."),
         ("Falla de Conexión en Gemini API", "Corte de red, API Key no configurada o límite de cuota (HTTP 429/503)", "Mecanismo de fallback con texto estandarizado que permite generar el Word sin bloquear la salida."),
         ("Fórmulas Rotas en Excel", "Sobrescritura directa de celdas calculadas durante la inyección de avances", "Inyección celda a celda mediante openpyxl respetando celdas con fórmulas primarias."),
+        ("Actualización de Sábana Activa", "Cambio de ciclo fiscal sin modificar archivo base en entradas/", "Función actualizar_excel_maestro() en GUI que reemplaza y recarga instancias en tiempo real."),
         ("Saturación de Almacenamiento", "Acumulación indeterminada de reportes temporales o historiales", "Ejecución de depurar_contexto_historico() y depurar_historico_salidas() automática en cada guardado.")
     ]
 
