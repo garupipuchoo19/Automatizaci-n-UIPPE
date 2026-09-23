@@ -43,115 +43,123 @@ def crear_manual_usuario():
     r_encabezado.font.color.rgb = GRIS_TEXTO
 
     p_titulo = doc.add_paragraph()
-    p_titulo.paragraph_format.space_before = Pt(20)
-    p_titulo.paragraph_format.space_after = Pt(10)
-    r_titulo = p_titulo.add_run("MANUAL DE USUARIO Y GUÍA DE OPERACIÓN")
+    p_titulo.paragraph_format.space_before = Pt(18)
+    p_titulo.paragraph_format.space_after = Pt(8)
+    r_titulo = p_titulo.add_run("MANUAL DE USUARIO Y GUÍA OPERATIVA DE CAMPO")
     r_titulo.font.size = Pt(20)
     r_titulo.font.bold = True
     r_titulo.font.color.rgb = AZUL_OPERAGUA
 
     p_sub = doc.add_paragraph()
-    p_sub.paragraph_format.space_after = Pt(20)
+    p_sub.paragraph_format.space_after = Pt(18)
     r_sub = p_sub.add_run(
-        "Sistema de Automatización, Inyección y Semaforización PbRM"
+        "Sistema de Automatización, Inyección y Semaforización PbRM\n"
+        "Guía Paso a Paso para la Captura, Evaluación y Generación de Informes"
     )
-    r_sub.font.size = Pt(12)
+    r_sub.font.size = Pt(11)
     r_sub.font.italic = True
     r_sub.font.color.rgb = GRIS_TEXTO
 
-    # --- SECCIÓN 1: INTRODUCCIÓN ---
-    h1 = doc.add_heading("1. Introducción y Objetivo", level=1)
+    # --- SECCIÓN 1: INTRODUCCIÓN Y OBJETIVO ---
+    h1 = doc.add_heading("1. Introducción y Objetivo de la Guía", level=1)
     h1.runs[0].font.color.rgb = AZUL_OPERAGUA
 
     p_body1 = doc.add_paragraph(
-        "El presente manual tiene como objetivo guiar al personal analista y administrativo de la UIPPE en el uso "
-        "del Sistema de Automatización PbRM. Esta herramienta facilita la captura de avances, la actualización de "
-        "Sábanas Maestras de Excel, el cálculo automatizado del semáforo de cumplimiento programático y la "
-        "generación de reportes ejecutivos en Word respaldados por Inteligencia Artificial."
+        "Este manual de usuario ofrece una guía clara y paso a paso para el personal operativo, analistas y "
+        "directivos de la UIPPE en OPERAGUA Cuautitlán Izcalli. Su propósito es orientar el uso del sistema "
+        "para realizar la captura rápida de avances trimestrales, actualizar la Sábana Maestra de Excel sin alterar sus fórmulas, "
+        "evaluar la semaforización oficial según la normativa del OSFEM y emitir reportes ejecutivos en Microsoft Word respaldados por Inteligencia Artificial."
     )
     p_body1.paragraph_format.line_spacing = 1.15
-    p_body1.paragraph_format.space_after = Pt(12)
+    p_body1.paragraph_format.space_after = Pt(10)
 
-    # --- SECCIÓN 2: INICIO Y CONFIGURACIÓN INICIAL ---
-    h2 = doc.add_heading("2. Inicio del Sistema y Configuración Global", level=1)
-    h2.runs[0].font.color.rgb = AZUL_OPERAGUA
+    # --- SECCIÓN 2: FLUJO DE TRABAJO RECOMENDADO ---
+    h2_flujo = doc.add_heading("2. Flujo de Trabajo Recomendado (Paso a Paso)", level=1)
+    h2_flujo.runs[0].font.color.rgb = AZUL_OPERAGUA
 
-    pasos_inicio = [
-        ("Apertura del Aplicativo", "Ejecute el archivo principal (.exe o script). Al iniciar, la aplicación cargará automáticamente las credenciales seguras y la estructura básica del proyecto."),
-        ("Selección del Ciclo Fiscal (Año)", "En la barra superior de la pantalla principal, seleccione el año de gestión (ej. 2026). Esto actualizará automáticamente la Sábana Maestra vinculada."),
-        ("Fecha de Emisión", "Haga clic en el campo de fecha o presione el botón del calendario (CTkDatePicker) para seleccionar la fecha de corte oficial para los reportes."),
-        ("Reemplazo de Sábana Maestra (Si aplica)", "Si inicia un nuevo año fiscal o requiere actualizar el archivo base, presione el botón 'Reemplazar Sábana Maestra', seleccione el archivo .xlsx correspondiente y confirme el reemplazo.")
-    ]
-
-    for titulo, desc in pasos_inicio:
-        p = doc.add_paragraph(style='List Bullet')
-        r_t = p.add_run(f"{titulo}: ")
-        r_t.bold = True
-        p.add_run(desc)
-
-    doc.add_paragraph().paragraph_format.space_after = Pt(12)
-
-    # --- SECCIÓN 3: PESTAÑA DE CAPTURA RÁPIDA ---
-    h3 = doc.add_heading("3. Módulo de Captura Rápida de Avances", level=1)
-    h3.runs[0].font.color.rgb = AZUL_OPERAGUA
-
-    p_captura = doc.add_paragraph(
-        "En la pestaña 'Captura de Avances' podrá registrar las metas reportadas por cada unidad administrativa:"
+    p_flujo_intro = doc.add_paragraph(
+        "Para garantizar la consistencia en el seguimiento del PbRM, se recomienda seguir el siguiente orden operativo:"
     )
 
-    pasos_captura = [
-        ("Selección de Área", "Elija la Dirección y el Área correspondiente utilizando los menús desplegables."),
-        ("Ingreso de Avance", "Introduzca el valor del avance alcanzado en el trimestre. El sistema actualizará inmediatamente la semaforización de la meta."),
-        ("Justificación Cualitativa", "En caso de desfases o desviaciones significativas en la meta, capture la justificación administrativa correspondiente en la caja de texto."),
-        ("Inyección a Excel", "Presione el botón 'Guardar / Inyectar en Excel'. Los datos se escribirán directamente en la Sábana Maestra preservando todas las fórmulas y cálculos existentes.")
+    pasos_flujo = [
+        ("Paso 1: Configurar Ciclo y Fecha", "Verificar que el ciclo fiscal (año) y la fecha de corte seleccionados coincidan con el periodo de evaluación."),
+        ("Paso 2: Validar o Reemplazar Sábana Maestra", "Si inicia un nuevo ciclo anual o el área de planeación actualizó la matriz base, cargar la nueva Sábana Maestra desde la interfaz."),
+        ("Paso 3: Capturar Avances y Justificaciones", "Seleccionar Dirección/Área, registrar el avance cuantitativo y capturar la justificación en caso de desvíos en la meta."),
+        ("Paso 4: Inyectar Datos en Excel", "Guardar e inyectar la información. El sistema escribirá directamente en el Excel respetando las fórmulas integradas."),
+        ("Paso 5: Revisar KPIs y Consolidado", "Verificar la distribución del semáforo global (Crítico, Deficiente, Regular, Adecuado, Sobrepasado) en la pestaña Consolidador."),
+        ("Paso 6: Generar Reporte Ejecutivo Word", "Activar el análisis con IA (Gemini) para evaluar el contexto histórico y exportar el reporte institucional listo para firma.")
     ]
 
-    for titulo, desc in pasos_captura:
+    for titulo, desc in pasos_flujo:
         p = doc.add_paragraph(style='List Bullet')
         r_t = p.add_run(f"{titulo}: ")
         r_t.bold = True
         p.add_run(desc)
 
-    doc.add_paragraph().paragraph_format.space_after = Pt(12)
+    doc.add_paragraph().paragraph_format.space_after = Pt(10)
 
-    # --- SECCIÓN 4: CONSOLIDADOR Y GENERACIÓN DE REPORTES ---
-    h4 = doc.add_heading("4. Módulo Consolidador y Generación de Reportes", level=1)
-    h4.runs[0].font.color.rgb = AZUL_OPERAGUA
+    # --- SECCIÓN 3: PANTALLA PRINCIPAL Y CONFIGURACIÓN ---
+    h3_gui = doc.add_heading("3. Interfaz Gráfica y Opciones Globales", level=1)
+    h3_gui.runs[0].font.color.rgb = AZUL_OPERAGUA
 
-    p_cons = doc.add_paragraph(
-        "En la pestaña 'Consolidador y KPIs' podrá evaluar el avance general del organismo y emitir los informes institucionales:"
+    p_gui = doc.add_paragraph(
+        "La interfaz principal integra un panel superior de control global y un visor de bitácora en tiempo real:"
     )
 
-    pasos_cons = [
-        ("Vista de KPIs", "Visualice las tarjetas resumen que indican el porcentaje global de cumplimiento y la distribución de metas por color de semáforo."),
-        ("Análisis con IA (Gemini)", "Active la casilla de evaluación con Inteligencia Artificial. El sistema analizará el desempeño actual comparándolo con la memoria histórica acumulada (hasta 5 trimestres previos)."),
-        ("Generación de Reporte Word", "Presione 'Generar Informe Word'. Se creará un documento .docx formateado con tablas institucionales, gráficos cualitativos y observaciones redactadas."),
-        ("Ubicación de Salida", "Todos los archivos generados se guardarán automáticamente en la carpeta 'salidas/' con respaldo de seguridad.")
+    elementos_gui = [
+        ("Selector de Ciclo Fiscal (Año)", "Menú desplegable que permite cambiar entre años de gestión. Ajusta automáticamente la Sábana Maestra vinculada (ej. CUAUTITLAN METAS E INDICADORES 2026.xlsx)."),
+        ("Selector de Fecha (CTkDatePicker)", "Campo con calendario desplegable integrado para definir la fecha oficial de emisión del reporte que figurará en el encabezado del documento Word."),
+        ("Botón Reemplazar Sábana Maestra", "Permite seleccionar un archivo Excel externo (.xlsx) desde el explorador de archivos. El sistema copia la nueva matriz a entradas/ y actualiza las instancias activas."),
+        ("Visor de Bitácora y Logs", "Consola inferior que muestra la confirmación de cada acción, advertencias de validación o alertas en caso de algún archivo faltante.")
     ]
 
-    for titulo, desc in pasos_cons:
+    for elem, e_desc in elementos_gui:
+        p_e = doc.add_paragraph(style='List Bullet')
+        r_en = p_e.add_run(f"{elem}: ")
+        r_en.bold = True
+        p_e.add_run(e_desc)
+
+    doc.add_paragraph().paragraph_format.space_after = Pt(10)
+
+    # --- SECCIÓN 4: CAPTURA RÁPIDA E INYECCIÓN EN EXCEL ---
+    h4_cap = doc.add_heading("4. Módulo de Captura Rápida de Avances", level=1)
+    h4_cap.runs[0].font.color.rgb = AZUL_OPERAGUA
+
+    p_cap = doc.add_paragraph(
+        "En la pestaña 'Captura de Avances', el usuario interactúa de forma directa con los indicadores programados:"
+    )
+
+    pasos_captura_det = [
+        ("Filtro por Dirección y Área", "Al seleccionar la Dirección, el segundo menú cargará únicamente las Áreas que le corresponden."),
+        ("Muestra de Metas Programadas", "El sistema muestra de manera automática la meta programada del trimestre para brindar una referencia visual inmediata."),
+        ("Ingreso de Avance y Semáforo en Vivo", "Al escribir el valor alcanzado, la aplicación calcula al instante el porcentaje de cumplimiento y asigna el color de semáforo OSFEM correspondiente."),
+        ("Captura de Justificación Cualitativa", "Si la meta presenta un avance en semáforo Crítico, Deficiente o Sobrepasado, se habilita el cuadro de texto para ingresar las causas y medidas correctivas."),
+        ("Inyección Segura", "Al hacer clic en 'Guardar / Inyectar en Excel', los cambios se guardan directamente en el archivo .xlsx de entradas/ sin sobreescribir las celdas con fórmulas primarias.")
+    ]
+
+    for titulo, desc in pasos_captura_det:
         p = doc.add_paragraph(style='List Bullet')
         r_t = p.add_run(f"{titulo}: ")
         r_t.bold = True
         p.add_run(desc)
 
-    doc.add_paragraph().paragraph_format.space_after = Pt(12)
+    doc.add_paragraph().paragraph_format.space_after = Pt(10)
 
-    # --- SECCIÓN 5: INTERPRETACIÓN DE SEMÁFOROS ---
-    h5 = doc.add_heading("5. Interpretación de la Semaforización (OSFEM / PbRM)", level=1)
-    h5.runs[0].font.color.rgb = AZUL_OPERAGUA
+    # --- SECCIÓN 5: SEMAFORIZACIÓN NORMATIVA Y INTERPRETACÓN ---
+    h5_sem = doc.add_heading("5. Criterios de Semaforización (Normativa OSFEM / PbRM)", level=1)
+    h5_sem.runs[0].font.color.rgb = AZUL_OPERAGUA
 
     tabla_sem = doc.add_table(rows=6, cols=3)
     corregir_ajuste_tabla(tabla_sem)
     tabla_sem.style = 'Table Grid'
 
     datos_sem = [
-        ("Semáforo", "Rango de Avance", "Significado / Acción Requerida"),
-        ("Crítico (Rojo)", "< 70.0%", "Incumplimiento severo. Requiere justificación obligatoria e intervención."),
-        ("Deficiente (Naranja)", "70.0% - 84.9%", "Subejercicio. Requiere plan de regularización."),
-        ("Regular (Amarillo)", "85.0% - 94.9%", "Cumplimiento aceptable con margen de mejora."),
-        ("Adecuado (Verde)", "95.0% - 110.0%", "Cumplimiento óptimo de lo programado."),
-        ("Sobrepasado (Azul)", "> 110.0%", "Meta rebasada. Requiere revisión de programación inicial.")
+        ("Semáforo", "Rango de Avance", "Significado y Acción Requerida"),
+        ("Crítico (Rojo)", "< 70.0%", "Incumplimiento severo. Requiere justificación obligatoria y plan de contingencia."),
+        ("Deficiente (Naranja)", "70.0% - 84.9%", "Subejercicio significativo. Se debe justificar la desviación en la captura."),
+        ("Regular (Amarillo)", "85.0% - 94.9%", "Cumplimiento cercano a la meta. Se encuentra dentro del rango de tolerancia."),
+        ("Adecuado (Verde)", "95.0% - 110.0%", "Cumplimiento óptimo de lo estimado. No requiere justificación adiciona."),
+        ("Sobrepasado (Azul)", "> 110.0%", "Meta rebasada. Requiere aclaración técnica por rebasamiento de lo programado.")
     ]
 
     colores_hex_sem = ["1F4E78", "E74C3C", "E67E22", "F1C40F", "27AE60", "2980B9"]
@@ -174,16 +182,41 @@ def crear_manual_usuario():
             row.cells[0].paragraphs[0].runs[0].font.color.rgb = RGBColor(255, 255, 255)
             row.cells[0].paragraphs[0].runs[0].font.bold = True
 
-    doc.add_paragraph().paragraph_format.space_after = Pt(12)
+    doc.add_paragraph().paragraph_format.space_after = Pt(10)
 
-    # --- SECCIÓN 6: PREGUNTAS FRECUENTES Y SOLUCIÓN DE PROBLEMAS ---
-    h6 = doc.add_heading("6. Solución de Problemas Frecuentes", level=1)
-    h6.runs[0].font.color.rgb = AZUL_OPERAGUA
+    # --- SECCIÓN 6: CONSOLIDADOR Y REPORTES CON IA ---
+    h6_cons = doc.add_heading("6. Consolidador Ejecutivo y Generación de Reportes Word", level=1)
+    h6_cons.runs[0].font.color.rgb = AZUL_OPERAGUA
+
+    p_cons = doc.add_paragraph(
+        "En la pestaña 'Consolidador y KPIs', el usuario puede revisar las métricas globales del organismo y emitir el informe final:"
+    )
+
+    pasos_cons_det = [
+        ("Resumen de Tarjetas KPI", "Visualización instantánea del porcentaje general de cumplimiento del organismo y conteo de metas por color de semáforo."),
+        ("Análisis Cualitativo con IA (Gemini API)", "Al presionar 'Generar Informe Word', el sistema evalúa la información actual junto con la memoria contextual acumulada en respaldos/contexto_word/ (hasta 5 trimestres anteriores)."),
+        ("Redacción Autónoma de Conclusiones", "La IA redacta de forma ejecutiva la síntesis del trimestre, destacando áreas con avance sobresaliente, causas comunes de retraso y recomendaciones operativas."),
+        ("Ubicación del Documento Generado", "El reporte final se deposita en la carpeta salidas/ en formato Word (.docx) aplicando los colores y estilos institucionales de OPERAGUA.")
+    ]
+
+    for titulo, desc in pasos_cons_det:
+        p = doc.add_paragraph(style='List Bullet')
+        r_t = p.add_run(f"{titulo}: ")
+        r_t.bold = True
+        p.add_run(desc)
+
+    doc.add_paragraph().paragraph_format.space_after = Pt(10)
+
+    # --- SECCIÓN 7: SOLUCIÓN DE PROBLEMAS Y PREGUNTAS FRECUENTES ---
+    h7_faq = doc.add_heading("7. Solución de Problemas Frecuentes (FAQ)", level=1)
+    h7_faq.runs[0].font.color.rgb = AZUL_OPERAGUA
 
     faqs = [
-        ("¿Qué pasa si falla la conexión a Internet durante el análisis de IA?", "El sistema cuenta con un respaldo automático. Generará el reporte en Word utilizando plantillas de redacción institucional sin interrumpir el proceso."),
-        ("¿El sistema borra los reportes de trimestres anteriores?", "No los elimina por completo; mantiene de forma automática los 5 reportes trimestrales más recientes como memoria contextual en 'respaldos/contexto_word/' para no saturar el equipo."),
-        ("¿Puedo modificar la Sábana Maestra directamente en Excel?", "Sí, pero se recomienda realizar las capturas desde el sistema para mantener la coherencia de datos y el registro en la bitácora de eventos.")
+        ("¿Qué sucede si no hay conexión a Internet o falla la API Key de Gemini?", "El sistema cuenta con un motor de respaldo (fallback) que detecta la interrupción y genera el informe Word utilizando plantillas de redacción estandarizada sin detener el proceso ni perder datos."),
+        ("¿Cómo se configuran las credenciales de IA (API Key)?", "La clave GEMINI_API_KEY se almacena de forma segura en un archivo de configuración .env en la raíz del programa, evitando tener que escribirla en la interfaz cada vez que se usa."),
+        ("¿El programa borra o sobrescribe los reportes de trimestres anteriores?", "No los borra de forma permanente. El sistema aplica un ciclo de rotación que conserva automáticamente los 5 reportes trimestrales más recientes en respaldos/contexto_word/ como memoria contextual."),
+        ("¿Qué hago si se actualizó la Sábana Maestra durante el proceso?", "Haga clic en el botón 'Reemplazar Sábana Maestra' en la barra superior de la app, seleccione el nuevo archivo Excel y confirme. El sistema recargará los menús y las referencias en tiempo real."),
+        ("¿Es posible editar el reporte Word generado?", "Sí. El documento resultante en salidas/ es un archivo estándar de Microsoft Word (.docx) totalmente editable para ajustes de formato o firmas institucionales.")
     ]
 
     for preg, resp in faqs:
