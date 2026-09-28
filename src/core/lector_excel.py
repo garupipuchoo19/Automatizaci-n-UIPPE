@@ -6,14 +6,17 @@ class LectorExcel:
         self.ruta_archivo = ruta_archivo
         self.datos = None
 
-    def cargar_datos(self, nombre_hoja=0, header=0):
+    def cargar_datos(self, nombre_hoja=0, header=1):
         if not os.path.exists(self.ruta_archivo):
             raise FileNotFoundError(f"El archivo {self.ruta_archivo} no existe.")
         try:
-            self.datos = pd.read_excel(self.ruta_archivo, sheet_name=nombre_hoja, header=header)
+            # Los encabezados oficiales están en la fila índice 1 del archivo de Cuautitlán
+            df_raw = pd.read_excel(self.ruta_archivo, sheet_name=nombre_hoja, header=header)
+            df_raw.columns = df_raw.columns.str.strip()
+            self.datos = df_raw
             return self.datos
         except Exception as e:
-            raise RuntimeError(f"Error al leer la hoja de Excel: {str(e)}")
+            raise RuntimeError(f"Error al leer la hoja de Excel '{nombre_hoja}': {str(e)}")
 
     def obtener_resumen(self):
         if self.datos is not None and not self.datos.empty:
@@ -23,20 +26,36 @@ class LectorExcel:
     # --- MÉTODOS ESPECÍFICOS PARA UIPPE ---
 
     def cargar_metas(self):
-        """Carga la hoja METAS omitiendo el título superior (header en la fila 3)."""
-        df = self.cargar_datos(nombre_hoja='METAS', header=2)
-        # Validación explícita de Pandas para evitar la advertencia de ambigüedad
+        """Carga la hoja METAS procesando los encabezados en la fila correcta."""
+        df = self.cargar_datos(nombre_hoja='METAS', header=1)
         if df is not None and not df.empty:
-            df = df.dropna(subset=['CLAVE', 'ÁREA ENCARGADA'])
+            df = df.dropna(subset=['CLAVE', 'ESTRUCTURA'])
         return df
 
     def cargar_indicadores(self):
-        """Carga la hoja INDICADORES con el encabezado estructurado."""
-        df = self.cargar_datos(nombre_hoja='INDICADORES', header=2)
+        """Carga la hoja INDICADORES procesando los encabezados en la fila correcta."""
+        df = self.cargar_datos(nombre_hoja='INDICADORES', header=1)
         if df is not None and not df.empty:
-            df = df.dropna(subset=['CLAVE', 'ÁREA ENCARGADA'])
+            df = df.dropna(subset=['CLAVE', 'ESTRUCTURA'])
         return df
 
     def cargar_resultados_general(self):
         """Carga la hoja de resultados calculados del Excel maestro."""
         return self.cargar_datos(nombre_hoja='resultados general', header=0)
+
+    def obtener_catalogo_estructuras(self, tipo_registro="METAS"):
+        """
+        Retorna la lista ordenada de Estructuras (códigos de área tipo A002120103010103)
+        y un diccionario mapeador de Estructura -> Área Encargada.
+        """
+        df = self.cargar_metas() if tipo_registro == "METAS" else self.cargar_indicadores()
+        
+        if df is None or df.empty:
+            return [], {}
+
+        df_sub = df[['ESTRUCTURA', 'ÁREA ENCARGADA']].dropna(subset=['ESTRUCTURA']).drop_duplicates()
+        
+        estructuras = sorted(df_sub['ESTRUCTURA'].astype(str).unique().tolist())
+        mapa_areas = dict(zip(df_sub['ESTRUCTURA'].astype(str), df_sub['ÁREA ENCARGADA'].astype(str)))
+        
+        return estructuras, mapa_areas
