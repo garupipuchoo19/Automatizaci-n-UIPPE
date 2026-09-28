@@ -11,16 +11,15 @@ class VistaCapturaRapida(ctk.CTkFrame):
         
         self.df_metas = None
         self.df_indicadores = None
-        self.entradas_captura = {}  # Guarda las referencias de entradas por CLAVE
+        self.entradas_captura = {}
 
-        # Control de actualización para prevenir bucles de eventos
         self._bloquear_eventos = False
         
         self.cargar_datos_base()
         self.crear_interfaz()
 
     def cargar_datos_base(self):
-        """Carga las hojas METAS e INDICADORES procesando encabezados en fila 2 (header=2)."""
+        """Carga METAS e INDICADORES con sus columnas reales."""
         if not self.ruta_excel or not os.path.exists(self.ruta_excel):
             messagebox.showerror(
                 "Error de Archivo", 
@@ -104,7 +103,7 @@ class VistaCapturaRapida(ctk.CTkFrame):
             values=["TODOS"],
             width=160,
             state="readonly",
-            command=lambda _: self.al_filtrar()
+            command=lambda val: self.al_filtrar('ESTRUCTURA', val)
         )
         self.combo_estructura.set("TODOS")
         self.combo_estructura.grid(row=0, column=5, padx=8, pady=8)
@@ -116,7 +115,7 @@ class VistaCapturaRapida(ctk.CTkFrame):
             values=["TODOS"],
             width=220,
             state="readonly",
-            command=lambda _: self.al_filtrar()
+            command=lambda val: self.al_filtrar('PROGRAMA', val)
         )
         self.combo_programa.set("TODOS")
         self.combo_programa.grid(row=1, column=1, columnspan=2, padx=8, pady=8, sticky="w")
@@ -127,7 +126,7 @@ class VistaCapturaRapida(ctk.CTkFrame):
             values=["TODOS"],
             width=220,
             state="readonly",
-            command=lambda _: self.al_filtrar()
+            command=lambda val: self.al_filtrar('PROYECTO', val)
         )
         self.combo_proyecto.set("TODOS")
         self.combo_proyecto.grid(row=1, column=4, columnspan=2, padx=8, pady=8, sticky="w")
@@ -139,7 +138,7 @@ class VistaCapturaRapida(ctk.CTkFrame):
             values=["TODOS"],
             width=320,
             state="readonly",
-            command=lambda _: self.al_filtrar()
+            command=lambda val: self.al_filtrar('AUX', val)
         )
         self.combo_auxiliar.set("TODOS")
         self.combo_auxiliar.grid(row=2, column=1, columnspan=3, padx=8, pady=8, sticky="w")
@@ -162,15 +161,14 @@ class VistaCapturaRapida(ctk.CTkFrame):
         )
         btn_guardar.pack(side="right", padx=10)
 
-        # Poblado inicial de catálogos
         self.poblar_catalogos_filtros()
 
     def al_cambiar_modo(self, _=None):
-        """Reinicia catálogos al cambiar entre Metas e Indicadores."""
+        """Reinicia todos los catálogos y resetea las selecciones al alternar modo."""
         self.poblar_catalogos_filtros()
 
     def poblar_catalogos_filtros(self):
-        """Pobla los desplegables según la hoja activa (Metas o Indicadores)."""
+        """Carga inicial de valores únicos en los 4 filtros sin restricciones."""
         self._bloquear_eventos = True
         df = self.df_metas if self.combo_tipo.get() == "Metas" else self.df_indicadores
 
@@ -197,13 +195,73 @@ class VistaCapturaRapida(ctk.CTkFrame):
         self._bloquear_eventos = False
         self.actualizar_tabla_captura()
 
-    def al_filtrar(self):
+    def al_filtrar(self, campo_modificado, nuevo_valor):
+        """
+        Recalcula las opciones disponibles en los demás desplegables (filtrado en cascada).
+        Mantiene la coherencia cruzada entre Programa, Proyecto, Auxiliar y Estructura.
+        """
         if self._bloquear_eventos:
             return
+
+        self._bloquear_eventos = True
+
+        df = self.df_metas if self.combo_tipo.get() == "Metas" else self.df_indicadores
+        if df is None or df.empty:
+            self._bloquear_eventos = False
+            return
+
+        # 1. Obtener valores seleccionados actualmente
+        sel_prog = self.combo_programa.get()
+        sel_proy = self.combo_proyecto.get()
+        sel_aux = self.combo_auxiliar.get()
+        sel_est = self.combo_estructura.get()
+
+        # Diccionario para controlar qué filtros están activos
+        filtros = {
+            'PROGRAMA': sel_prog,
+            'PROYECTO': sel_proy,
+            'AUX': sel_aux,
+            'ESTRUCTURA': sel_est
+        }
+
+        # 2. Función auxiliar para recalcular opciones relativas a las demás elecciones
+        def obtener_opciones_relacionadas(columna_destino):
+            cond = pd.Series(True, index=df.index)
+            for col, val in filtros.items():
+                if col != columna_destino and val != "TODOS":
+                    cond &= (df[col] == val)
+            opciones = sorted([x for x in df[cond][columna_destino].unique() if str(x).strip()])
+            return ["TODOS"] + opciones
+
+        # 3. Recalcular las opciones de cada ComboBox
+        opciones_prog = obtener_opciones_relacionadas('PROGRAMA')
+        opciones_proy = obtener_opciones_relacionadas('PROYECTO')
+        opciones_aux = obtener_opciones_relacionadas('AUX')
+        opciones_est = obtener_opciones_relacionadas('ESTRUCTURA')
+
+        self.combo_programa.configure(values=opciones_prog)
+        if sel_prog not in opciones_prog:
+            self.combo_programa.set("TODOS")
+
+        self.combo_proyecto.configure(values=opciones_proy)
+        if sel_proy not in opciones_proy:
+            self.combo_proyecto.set("TODOS")
+
+        self.combo_auxiliar.configure(values=opciones_aux)
+        if sel_aux not in opciones_aux:
+            self.combo_auxiliar.set("TODOS")
+
+        self.combo_estructura.configure(values=opciones_est)
+        if sel_est not in opciones_est:
+            self.combo_estructura.set("TODOS")
+
+        self._bloquear_eventos = False
+        
+        # 4. Refrescar los datos en la tabla
         self.actualizar_tabla_captura()
 
     def obtener_df_filtrado(self):
-        """Filtra el dataframe activo aplicando los 4 criterios de selección."""
+        """Filtra el dataframe activo según los valores seleccionados."""
         df = self.df_metas if self.combo_tipo.get() == "Metas" else self.df_indicadores
         if df is None or df.empty:
             return pd.DataFrame()
@@ -247,7 +305,7 @@ class VistaCapturaRapida(ctk.CTkFrame):
         return mapa_cols.get(trimestre_str, "AVANCE 1°. TRIM")
 
     def actualizar_tabla_captura(self):
-        """Dibuja dinámicamente la tabla incorporando Nivel y Variables en Indicadores."""
+        """Renderiza dinámicamente según el modo activo."""
         if not hasattr(self, 'scroll_frame') or self.scroll_frame is None:
             return
 
@@ -274,7 +332,6 @@ class VistaCapturaRapida(ctk.CTkFrame):
         col_avance = self.obtener_columna_avance(trim_sel)
         col_desc = 'DESCRIPCIÓN DE LA META FÍSICA' if tipo_sel == "Metas" else 'DESCRIPCIÓN DEL INDICADOR'
 
-        # --- ESTRUCTURA Y ENCABEZADOS DE TABLA ---
         if tipo_sel == "Indicadores":
             headers = ["Estructura", "Área Encargada", "Nivel", "Descripción Indicador", "Variables", "U. Medida", "Progr.", "Avance Real", "Justificación"]
             widths = [110, 160, 90, 220, 150, 80, 50, 75, 150]
@@ -292,7 +349,6 @@ class VistaCapturaRapida(ctk.CTkFrame):
             )
             lbl_h.grid(row=0, column=col_idx, padx=3, pady=5, sticky="w")
 
-        # --- RENDERIZADO DE REGISTROS ---
         for row_idx, (_, row_data) in enumerate(df_filtrado.iterrows(), start=1):
             clave_reg = str(row_data['CLAVE'])
             cod_est = str(row_data.get('ESTRUCTURA', ''))
@@ -316,7 +372,7 @@ class VistaCapturaRapida(ctk.CTkFrame):
             ctk.CTkLabel(self.scroll_frame, text=area_fmt, width=widths[curr_col], anchor="w", justify="left").grid(row=row_idx, column=curr_col, padx=3, pady=3, sticky="w")
             curr_col += 1
 
-            # 3. Indicadores: Nivel
+            # 3. Solo para Indicadores: Nivel
             if tipo_sel == "Indicadores":
                 val_nivel = str(row_data.get('NIVEL', ''))
                 nivel_fmt = val_nivel[:15] + "..." if len(val_nivel) > 15 else val_nivel
@@ -329,7 +385,7 @@ class VistaCapturaRapida(ctk.CTkFrame):
             ctk.CTkLabel(self.scroll_frame, text=desc_fmt, width=widths[curr_col], anchor="w", justify="left").grid(row=row_idx, column=curr_col, padx=3, pady=3, sticky="w")
             curr_col += 1
 
-            # 5. Indicadores: Variables
+            # 5. Solo para Indicadores: Variables
             if tipo_sel == "Indicadores":
                 val_vars = str(row_data.get('VARIABLES', ''))
                 vars_fmt = val_vars[:22] + "..." if len(val_vars) > 22 else val_vars
@@ -361,7 +417,6 @@ class VistaCapturaRapida(ctk.CTkFrame):
             }
 
     def guardar_captura(self):
-        """Recopila y valida la información capturada."""
         datos_capturados = []
         tipo_sel = self.combo_tipo.get()
         
