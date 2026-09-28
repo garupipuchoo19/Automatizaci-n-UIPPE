@@ -6,22 +6,21 @@ import os
 class VistaCapturaRapida(ctk.CTkFrame):
     def __init__(self, parent, ruta_excel_maestro, al_guardar_callback=None):
         super().__init__(parent)
-        # Asegurar conversión a string para evitar problemas con pathlib.Path
         self.ruta_excel = str(ruta_excel_maestro) if ruta_excel_maestro else ""
         self.al_guardar_callback = al_guardar_callback
         
         self.df_metas = None
         self.df_indicadores = None
-        self.mapa_estructuras_metas = {}
-        self.mapa_estructuras_ind = {}
-        
-        self.entradas_captura = {}  # Guarda los widgets de entrada mapeados por CLAVE
+        self.entradas_captura = {}  # Guarda las referencias de entradas por CLAVE
+
+        # Control de actualización para prevenir bucles de eventos
+        self._bloquear_eventos = False
         
         self.cargar_datos_base()
         self.crear_interfaz()
 
     def cargar_datos_base(self):
-        """Carga las hojas METAS e INDICADORES ajustando header=2 según la plantilla oficial."""
+        """Carga las hojas METAS e INDICADORES procesando encabezados en fila 2 (header=2)."""
         if not self.ruta_excel or not os.path.exists(self.ruta_excel):
             messagebox.showerror(
                 "Error de Archivo", 
@@ -30,31 +29,25 @@ class VistaCapturaRapida(ctk.CTkFrame):
             return
 
         try:
-            # 1. Cargar Hoja METAS (Encabezados oficiales en la fila 2)
+            # 1. Cargar METAS
             df_m = pd.read_excel(self.ruta_excel, sheet_name="METAS", header=2)
             df_m.columns = df_m.columns.astype(str).str.strip()
-            
-            if 'CLAVE' in df_m.columns and 'ESTRUCTURA' in df_m.columns:
-                self.df_metas = df_m.dropna(subset=['CLAVE', 'ESTRUCTURA']).copy()
-                self.df_metas['ESTRUCTURA'] = self.df_metas['ESTRUCTURA'].astype(str).str.strip()
-                
-                col_area = 'ÁREA ENCARGADA' if 'ÁREA ENCARGADA' in self.df_metas.columns else 'DEPENDENCIA GENERAL'
-                sub_m = self.df_metas[['ESTRUCTURA', col_area]].drop_duplicates().dropna()
-                self.mapa_estructuras_metas = dict(zip(sub_m['ESTRUCTURA'], sub_m[col_area].astype(str)))
+            if 'CLAVE' in df_m.columns:
+                self.df_metas = df_m.dropna(subset=['CLAVE']).copy()
+                for col in ['PROGRAMA', 'PROYECTO', 'AUX', 'ESTRUCTURA']:
+                    if col in self.df_metas.columns:
+                        self.df_metas[col] = self.df_metas[col].fillna("").astype(str).str.strip()
             else:
                 self.df_metas = pd.DataFrame()
 
-            # 2. Cargar Hoja INDICADORES (Encabezados también en header=2)
+            # 2. Cargar INDICADORES
             df_i = pd.read_excel(self.ruta_excel, sheet_name="INDICADORES", header=2)
             df_i.columns = df_i.columns.astype(str).str.strip()
-            
-            if 'CLAVE' in df_i.columns and 'ESTRUCTURA' in df_i.columns:
-                self.df_indicadores = df_i.dropna(subset=['CLAVE', 'ESTRUCTURA']).copy()
-                self.df_indicadores['ESTRUCTURA'] = self.df_indicadores['ESTRUCTURA'].astype(str).str.strip()
-                
-                col_area_i = 'ÁREA ENCARGADA' if 'ÁREA ENCARGADA' in self.df_indicadores.columns else 'DEPENDENCIA GENERAL'
-                sub_i = self.df_indicadores[['ESTRUCTURA', col_area_i]].drop_duplicates().dropna()
-                self.mapa_estructuras_ind = dict(zip(sub_i['ESTRUCTURA'], sub_i[col_area_i].astype(str)))
+            if 'CLAVE' in df_i.columns:
+                self.df_indicadores = df_i.dropna(subset=['CLAVE']).copy()
+                for col in ['PROGRAMA', 'PROYECTO', 'AUX', 'ESTRUCTURA', 'NIVEL', 'VARIABLES']:
+                    if col in self.df_indicadores.columns:
+                        self.df_indicadores[col] = self.df_indicadores[col].fillna("").astype(str).str.strip()
             else:
                 self.df_indicadores = pd.DataFrame()
 
@@ -65,60 +58,94 @@ class VistaCapturaRapida(ctk.CTkFrame):
         # --- CABECERA ---
         lbl_titulo = ctk.CTkLabel(
             self, 
-            text="Módulo de Captura y Edición por Estructura Programática", 
+            text="Módulo de Captura y Edición de Avances (PbRM)", 
             font=ctk.CTkFont(size=18, weight="bold")
         )
         lbl_titulo.pack(pady=(15, 5), padx=20, anchor="w")
 
         lbl_sub = ctk.CTkLabel(
             self, 
-            text="Seleccione el tipo de registro (Metas o Indicadores) y la Estructura Programática correspondiente.",
+            text="Filtre por Programa, Proyecto, Auxiliar o Estructura para capturar los avances físicos del trimestre.",
             font=ctk.CTkFont(size=12),
             text_color="gray"
         )
-        lbl_sub.pack(pady=(0, 15), padx=20, anchor="w")
+        lbl_sub.pack(pady=(0, 10), padx=20, anchor="w")
 
-        # --- PANEL DE FILTROS Y SELECCIÓN ---
+        # --- PANEL DE FILTROS SUPERIOR ---
         frame_filtros = ctk.CTkFrame(self)
         frame_filtros.pack(fill="x", padx=20, pady=5)
 
-        # 1. Selector de Modo (Metas o Indicadores)
-        ctk.CTkLabel(frame_filtros, text="Modo:", font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, padx=10, pady=10, sticky="w")
+        # Fila 0: Modo, Trimestre y Estructura
+        ctk.CTkLabel(frame_filtros, text="Modo:", font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, padx=(10, 2), pady=8, sticky="w")
         self.combo_tipo = ctk.CTkComboBox(
             frame_filtros, 
             values=["Metas", "Indicadores"],
-            width=130,
+            width=120,
             state="readonly",
-            command=self.al_cambiar_tipo_registro
+            command=self.al_cambiar_modo
         )
         self.combo_tipo.set("Metas")
-        self.combo_tipo.grid(row=0, column=1, padx=10, pady=10)
+        self.combo_tipo.grid(row=0, column=1, padx=8, pady=8)
 
-        # 2. Trimestre
-        ctk.CTkLabel(frame_filtros, text="Trimestre:", font=ctk.CTkFont(weight="bold")).grid(row=0, column=2, padx=10, pady=10, sticky="w")
+        ctk.CTkLabel(frame_filtros, text="Trimestre:", font=ctk.CTkFont(weight="bold")).grid(row=0, column=2, padx=(10, 2), pady=8, sticky="w")
         self.combo_trimestre = ctk.CTkComboBox(
             frame_filtros, 
             values=["1° TRIMESTRE", "2° TRIMESTRE", "3° TRIMESTRE", "4° TRIMESTRE"],
-            width=140,
+            width=130,
             state="readonly",
             command=lambda _: self.actualizar_tabla_captura()
         )
         self.combo_trimestre.set("1° TRIMESTRE")
-        self.combo_trimestre.grid(row=0, column=3, padx=10, pady=10)
+        self.combo_trimestre.grid(row=0, column=3, padx=8, pady=8)
 
-        # 3. Estructura Programática
-        ctk.CTkLabel(frame_filtros, text="Estructura:", font=ctk.CTkFont(weight="bold")).grid(row=0, column=4, padx=10, pady=10, sticky="w")
+        ctk.CTkLabel(frame_filtros, text="Estructura:", font=ctk.CTkFont(weight="bold")).grid(row=0, column=4, padx=(10, 2), pady=8, sticky="w")
         self.combo_estructura = ctk.CTkComboBox(
             frame_filtros, 
-            values=[],
-            width=230,
+            values=["TODOS"],
+            width=160,
             state="readonly",
-            command=lambda _: self.actualizar_tabla_captura()
+            command=lambda _: self.al_filtrar()
         )
-        self.combo_estructura.grid(row=0, column=5, padx=10, pady=10)
+        self.combo_estructura.set("TODOS")
+        self.combo_estructura.grid(row=0, column=5, padx=8, pady=8)
+
+        # Fila 1: Programa y Proyecto
+        ctk.CTkLabel(frame_filtros, text="Programa:", font=ctk.CTkFont(weight="bold")).grid(row=1, column=0, padx=(10, 2), pady=8, sticky="w")
+        self.combo_programa = ctk.CTkComboBox(
+            frame_filtros, 
+            values=["TODOS"],
+            width=220,
+            state="readonly",
+            command=lambda _: self.al_filtrar()
+        )
+        self.combo_programa.set("TODOS")
+        self.combo_programa.grid(row=1, column=1, columnspan=2, padx=8, pady=8, sticky="w")
+
+        ctk.CTkLabel(frame_filtros, text="Proyecto:", font=ctk.CTkFont(weight="bold")).grid(row=1, column=3, padx=(10, 2), pady=8, sticky="w")
+        self.combo_proyecto = ctk.CTkComboBox(
+            frame_filtros, 
+            values=["TODOS"],
+            width=220,
+            state="readonly",
+            command=lambda _: self.al_filtrar()
+        )
+        self.combo_proyecto.set("TODOS")
+        self.combo_proyecto.grid(row=1, column=4, columnspan=2, padx=8, pady=8, sticky="w")
+
+        # Fila 2: Auxiliar
+        ctk.CTkLabel(frame_filtros, text="Auxiliar:", font=ctk.CTkFont(weight="bold")).grid(row=2, column=0, padx=(10, 2), pady=8, sticky="w")
+        self.combo_auxiliar = ctk.CTkComboBox(
+            frame_filtros, 
+            values=["TODOS"],
+            width=320,
+            state="readonly",
+            command=lambda _: self.al_filtrar()
+        )
+        self.combo_auxiliar.set("TODOS")
+        self.combo_auxiliar.grid(row=2, column=1, columnspan=3, padx=8, pady=8, sticky="w")
 
         # --- CONTENEDOR SCROLLABLE PARA LA TABLA ---
-        self.scroll_frame = ctk.CTkScrollableFrame(self, label_text="Registros por Estructura y Área Encargada")
+        self.scroll_frame = ctk.CTkScrollableFrame(self, label_text="Registros Filtrados")
         self.scroll_frame.pack(fill="both", expand=True, padx=20, pady=10)
 
         # --- BOTONERA DE ACCIÓN ---
@@ -135,23 +162,71 @@ class VistaCapturaRapida(ctk.CTkFrame):
         )
         btn_guardar.pack(side="right", padx=10)
 
-        # Cargar catálogo de estructuras inicial
-        self.al_cambiar_tipo_registro("Metas")
+        # Poblado inicial de catálogos
+        self.poblar_catalogos_filtros()
 
-    def al_cambiar_tipo_registro(self, tipo_sel):
-        """Actualiza el catálogo de estructuras según el modo seleccionado (Metas o Indicadores)."""
-        if tipo_sel == "Metas":
-            estructuras = sorted(list(self.mapa_estructuras_metas.keys()))
-        else:
-            estructuras = sorted(list(self.mapa_estructuras_ind.keys()))
+    def al_cambiar_modo(self, _=None):
+        """Reinicia catálogos al cambiar entre Metas e Indicadores."""
+        self.poblar_catalogos_filtros()
 
-        self.combo_estructura.configure(values=estructuras)
-        if estructuras:
-            self.combo_estructura.set(estructuras[0])
+    def poblar_catalogos_filtros(self):
+        """Pobla los desplegables según la hoja activa (Metas o Indicadores)."""
+        self._bloquear_eventos = True
+        df = self.df_metas if self.combo_tipo.get() == "Metas" else self.df_indicadores
+
+        if df is not None and not df.empty:
+            progs = ["TODOS"] + sorted([x for x in df['PROGRAMA'].unique() if str(x).strip()])
+            proys = ["TODOS"] + sorted([x for x in df['PROYECTO'].unique() if str(x).strip()])
+            auxs = ["TODOS"] + sorted([x for x in df['AUX'].unique() if str(x).strip()])
+            ests = ["TODOS"] + sorted([x for x in df['ESTRUCTURA'].unique() if str(x).strip()])
         else:
-            self.combo_estructura.set("")
-            
+            progs, proys, auxs, ests = ["TODOS"], ["TODOS"], ["TODOS"], ["TODOS"]
+
+        self.combo_programa.configure(values=progs)
+        self.combo_programa.set("TODOS")
+
+        self.combo_proyecto.configure(values=proys)
+        self.combo_proyecto.set("TODOS")
+
+        self.combo_auxiliar.configure(values=auxs)
+        self.combo_auxiliar.set("TODOS")
+
+        self.combo_estructura.configure(values=ests)
+        self.combo_estructura.set("TODOS")
+
+        self._bloquear_eventos = False
         self.actualizar_tabla_captura()
+
+    def al_filtrar(self):
+        if self._bloquear_eventos:
+            return
+        self.actualizar_tabla_captura()
+
+    def obtener_df_filtrado(self):
+        """Filtra el dataframe activo aplicando los 4 criterios de selección."""
+        df = self.df_metas if self.combo_tipo.get() == "Metas" else self.df_indicadores
+        if df is None or df.empty:
+            return pd.DataFrame()
+
+        cond = pd.Series(True, index=df.index)
+
+        p = self.combo_programa.get()
+        if p != "TODOS":
+            cond &= (df['PROGRAMA'] == p)
+
+        pr = self.combo_proyecto.get()
+        if pr != "TODOS":
+            cond &= (df['PROYECTO'] == pr)
+
+        ax = self.combo_auxiliar.get()
+        if ax != "TODOS":
+            cond &= (df['AUX'] == ax)
+
+        est = self.combo_estructura.get()
+        if est != "TODOS":
+            cond &= (df['ESTRUCTURA'] == est)
+
+        return df[cond]
 
     def obtener_columna_programada(self, trimestre_str):
         mapa_cols = {
@@ -172,7 +247,7 @@ class VistaCapturaRapida(ctk.CTkFrame):
         return mapa_cols.get(trimestre_str, "AVANCE 1°. TRIM")
 
     def actualizar_tabla_captura(self):
-        """Renderiza los datos e incluye la columna de Área Encargada en la tabla."""
+        """Dibuja dinámicamente la tabla incorporando Nivel y Variables en Indicadores."""
         if not hasattr(self, 'scroll_frame') or self.scroll_frame is None:
             return
 
@@ -187,13 +262,11 @@ class VistaCapturaRapida(ctk.CTkFrame):
             pass
 
         tipo_sel = self.combo_tipo.get()
-        est_sel = self.combo_estructura.get()
         trim_sel = self.combo_trimestre.get()
+        df_filtrado = self.obtener_df_filtrado()
 
-        df_base = self.df_metas if tipo_sel == "Metas" else self.df_indicadores
-
-        if df_base is None or df_base.empty or est_sel == "":
-            lbl_vacio = ctk.CTkLabel(self.scroll_frame, text="No hay registros disponibles.")
+        if df_filtrado.empty:
+            lbl_vacio = ctk.CTkLabel(self.scroll_frame, text="No se encontraron registros con los filtros seleccionados.")
             lbl_vacio.pack(pady=20)
             return
 
@@ -201,17 +274,13 @@ class VistaCapturaRapida(ctk.CTkFrame):
         col_avance = self.obtener_columna_avance(trim_sel)
         col_desc = 'DESCRIPCIÓN DE LA META FÍSICA' if tipo_sel == "Metas" else 'DESCRIPCIÓN DEL INDICADOR'
 
-        # Filtrar por la Estructura seleccionada
-        registros_filtrados = df_base[df_base['ESTRUCTURA'].astype(str) == str(est_sel)]
-
-        if registros_filtrados.empty:
-            lbl_vacio = ctk.CTkLabel(self.scroll_frame, text="No hay registros asignados a esta estructura.")
-            lbl_vacio.pack(pady=20)
-            return
-
-        # Encabezados de la Tabla
-        headers = ["Estructura", "Área Encargada", "Descripción", "U. Medida", "Progr.", "Avance Real", "Justificación"]
-        widths = [130, 220, 280, 80, 50, 80, 180]
+        # --- ESTRUCTURA Y ENCABEZADOS DE TABLA ---
+        if tipo_sel == "Indicadores":
+            headers = ["Estructura", "Área Encargada", "Nivel", "Descripción Indicador", "Variables", "U. Medida", "Progr.", "Avance Real", "Justificación"]
+            widths = [110, 160, 90, 220, 150, 80, 50, 75, 150]
+        else:
+            headers = ["Estructura", "Área Encargada", "Descripción Meta Física", "U. Medida", "Progr.", "Avance Real", "Justificación"]
+            widths = [120, 200, 280, 90, 50, 80, 180]
 
         for col_idx, (h_text, w) in enumerate(zip(headers, widths)):
             lbl_h = ctk.CTkLabel(
@@ -219,15 +288,15 @@ class VistaCapturaRapida(ctk.CTkFrame):
                 text=h_text, 
                 font=ctk.CTkFont(size=11, weight="bold"),
                 width=w,
-                anchor="w" if col_idx in [1, 2, 6] else "center"
+                anchor="w" if "Descripción" in h_text or h_text in ["Área Encargada", "Variables", "Justificación"] else "center"
             )
-            lbl_h.grid(row=0, column=col_idx, padx=4, pady=5, sticky="w")
+            lbl_h.grid(row=0, column=col_idx, padx=3, pady=5, sticky="w")
 
-        # Inyección de Filas
-        for row_idx, (_, row_data) in enumerate(registros_filtrados.iterrows(), start=1):
+        # --- RENDERIZADO DE REGISTROS ---
+        for row_idx, (_, row_data) in enumerate(df_filtrado.iterrows(), start=1):
             clave_reg = str(row_data['CLAVE'])
-            cod_est = str(row_data['ESTRUCTURA'])
-            area_encargada = str(row_data.get('ÁREA ENCARGADA', ''))
+            cod_est = str(row_data.get('ESTRUCTURA', ''))
+            area_encargada = str(row_data.get('ÁREA ENCARGADA', row_data.get('DEPENDENCIA GENERAL', '')))
             desc_reg = str(row_data.get(col_desc, ''))
             u_medida = str(row_data.get('UNIDAD DE MEDIDA', ''))
             val_progr = row_data.get(col_progr, 0)
@@ -236,31 +305,54 @@ class VistaCapturaRapida(ctk.CTkFrame):
             if pd.isna(val_avance_previo):
                 val_avance_previo = ""
 
-            # Label Estructura
-            ctk.CTkLabel(self.scroll_frame, text=cod_est, width=130, anchor="center").grid(row=row_idx, column=0, padx=4, pady=4)
-            
-            # Label Área Encargada
-            area_fmt = area_encargada[:32] + "..." if len(area_encargada) > 32 else area_encargada
-            ctk.CTkLabel(self.scroll_frame, text=area_fmt, width=220, anchor="w", justify="left").grid(row=row_idx, column=1, padx=4, pady=4, sticky="w")
+            curr_col = 0
 
-            # Label Descripción
-            desc_fmt = desc_reg[:45] + "..." if len(desc_reg) > 45 else desc_reg
-            ctk.CTkLabel(self.scroll_frame, text=desc_fmt, width=280, anchor="w", justify="left").grid(row=row_idx, column=2, padx=4, pady=4, sticky="w")
+            # 1. Estructura
+            ctk.CTkLabel(self.scroll_frame, text=cod_est, width=widths[curr_col], anchor="center").grid(row=row_idx, column=curr_col, padx=3, pady=3)
+            curr_col += 1
 
-            # Label U. Medida
-            ctk.CTkLabel(self.scroll_frame, text=u_medida, width=80, anchor="center").grid(row=row_idx, column=3, padx=4, pady=4)
+            # 2. Área Encargada
+            area_fmt = area_encargada[:26] + "..." if len(area_encargada) > 26 else area_encargada
+            ctk.CTkLabel(self.scroll_frame, text=area_fmt, width=widths[curr_col], anchor="w", justify="left").grid(row=row_idx, column=curr_col, padx=3, pady=3, sticky="w")
+            curr_col += 1
 
-            # Label Programado
-            ctk.CTkLabel(self.scroll_frame, text=str(val_progr), font=ctk.CTkFont(weight="bold"), width=50, anchor="center").grid(row=row_idx, column=4, padx=4, pady=4)
+            # 3. Indicadores: Nivel
+            if tipo_sel == "Indicadores":
+                val_nivel = str(row_data.get('NIVEL', ''))
+                nivel_fmt = val_nivel[:15] + "..." if len(val_nivel) > 15 else val_nivel
+                ctk.CTkLabel(self.scroll_frame, text=nivel_fmt, width=widths[curr_col], anchor="center").grid(row=row_idx, column=curr_col, padx=3, pady=3)
+                curr_col += 1
 
-            # Input: Avance Real
-            txt_avance = ctk.CTkEntry(self.scroll_frame, width=75, placeholder_text="0")
+            # 4. Descripción
+            desc_limit = 35 if tipo_sel == "Indicadores" else 45
+            desc_fmt = desc_reg[:desc_limit] + "..." if len(desc_reg) > desc_limit else desc_reg
+            ctk.CTkLabel(self.scroll_frame, text=desc_fmt, width=widths[curr_col], anchor="w", justify="left").grid(row=row_idx, column=curr_col, padx=3, pady=3, sticky="w")
+            curr_col += 1
+
+            # 5. Indicadores: Variables
+            if tipo_sel == "Indicadores":
+                val_vars = str(row_data.get('VARIABLES', ''))
+                vars_fmt = val_vars[:22] + "..." if len(val_vars) > 22 else val_vars
+                ctk.CTkLabel(self.scroll_frame, text=vars_fmt, width=widths[curr_col], anchor="w", justify="left").grid(row=row_idx, column=curr_col, padx=3, pady=3, sticky="w")
+                curr_col += 1
+
+            # 6. U. Medida
+            ctk.CTkLabel(self.scroll_frame, text=u_medida, width=widths[curr_col], anchor="center").grid(row=row_idx, column=curr_col, padx=3, pady=3)
+            curr_col += 1
+
+            # 7. Programado
+            ctk.CTkLabel(self.scroll_frame, text=str(val_progr), font=ctk.CTkFont(weight="bold"), width=widths[curr_col], anchor="center").grid(row=row_idx, column=curr_col, padx=3, pady=3)
+            curr_col += 1
+
+            # 8. Input: Avance Real
+            txt_avance = ctk.CTkEntry(self.scroll_frame, width=widths[curr_col], placeholder_text="0")
             txt_avance.insert(0, str(val_avance_previo))
-            txt_avance.grid(row=row_idx, column=5, padx=4, pady=4)
+            txt_avance.grid(row=row_idx, column=curr_col, padx=3, pady=3)
+            curr_col += 1
 
-            # Input: Justificación
-            txt_just = ctk.CTkEntry(self.scroll_frame, width=180, placeholder_text="Opcional")
-            txt_just.grid(row=row_idx, column=6, padx=4, pady=4)
+            # 9. Input: Justificación
+            txt_just = ctk.CTkEntry(self.scroll_frame, width=widths[curr_col], placeholder_text="Opcional")
+            txt_just.grid(row=row_idx, column=curr_col, padx=3, pady=3)
 
             self.entradas_captura[clave_reg] = {
                 "input_avance": txt_avance,
@@ -292,7 +384,7 @@ class VistaCapturaRapida(ctk.CTkFrame):
                 })
 
         if not datos_capturados:
-            messagebox.showinfo("Sin Datos", "No hay avances para guardar.")
+            messagebox.showinfo("Sin Datos", "No hay valores de avance capturados para guardar.")
             return
 
         df_captura = pd.DataFrame(datos_capturados)
@@ -301,6 +393,6 @@ class VistaCapturaRapida(ctk.CTkFrame):
         if self.al_guardar_callback:
             self.al_guardar_callback(df_captura, trimestre_num, tipo_sel)
         else:
-            messagebox.showinfo("Captura Registrada", f"Se guardaron {len(df_captura)} registros de {tipo_sel} para el Trimestre {trimestre_num}.")
+            messagebox.showinfo("Captura Registrada", f"Se registraron {len(df_captura)} avances de {tipo_sel} para el Trimestre {trimestre_num}.")
             self.cargar_datos_base()
-            self.actualizar_tabla_captura()
+            self.poblar_catalogos_filtros()
