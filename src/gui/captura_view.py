@@ -1,7 +1,8 @@
+import os
 import customtkinter as ctk
 import pandas as pd
 from tkinter import messagebox
-import os
+from PIL import Image  # Requerido para el procesamiento de imágenes
 
 class VistaCapturaRapida(ctk.CTkFrame):
     def __init__(self, parent, ruta_excel_maestro, al_guardar_callback=None):
@@ -54,13 +55,13 @@ class VistaCapturaRapida(ctk.CTkFrame):
             messagebox.showerror("Error de Carga", f"Error al procesar el archivo Excel maestro:\n{str(e)}")
 
     def crear_interfaz(self):
-        # --- CABECERA ---
+        # --- CABECERA PRINCIPAL (SOLO TEXTOS) ---
         lbl_titulo = ctk.CTkLabel(
             self, 
             text="Módulo de Captura y Edición de Avances (PbRM)", 
             font=ctk.CTkFont(size=18, weight="bold")
         )
-        lbl_titulo.pack(pady=(15, 5), padx=20, anchor="w")
+        lbl_titulo.pack(pady=(15, 2), padx=20, anchor="w")
 
         lbl_sub = ctk.CTkLabel(
             self, 
@@ -70,7 +71,7 @@ class VistaCapturaRapida(ctk.CTkFrame):
         )
         lbl_sub.pack(pady=(0, 10), padx=20, anchor="w")
 
-        # --- PANEL DE FILTROS SUPERIOR ---
+        # --- PANEL DE FILTROS SUPERIOR Y LOGO ---
         frame_filtros = ctk.CTkFrame(self)
         frame_filtros.pack(fill="x", padx=20, pady=5)
 
@@ -84,7 +85,7 @@ class VistaCapturaRapida(ctk.CTkFrame):
             command=self.al_cambiar_modo
         )
         self.combo_tipo.set("Metas")
-        self.combo_tipo.grid(row=0, column=1, padx=8, pady=8)
+        self.combo_tipo.grid(row=0, column=1, padx=8, pady=8, sticky="w")
 
         ctk.CTkLabel(frame_filtros, text="Trimestre:", font=ctk.CTkFont(weight="bold")).grid(row=0, column=2, padx=(10, 2), pady=8, sticky="w")
         self.combo_trimestre = ctk.CTkComboBox(
@@ -95,7 +96,7 @@ class VistaCapturaRapida(ctk.CTkFrame):
             command=lambda _: self.actualizar_tabla_captura()
         )
         self.combo_trimestre.set("1° TRIMESTRE")
-        self.combo_trimestre.grid(row=0, column=3, padx=8, pady=8)
+        self.combo_trimestre.grid(row=0, column=3, padx=8, pady=8, sticky="w")
 
         ctk.CTkLabel(frame_filtros, text="Estructura:", font=ctk.CTkFont(weight="bold")).grid(row=0, column=4, padx=(10, 2), pady=8, sticky="w")
         self.combo_estructura = ctk.CTkComboBox(
@@ -106,7 +107,7 @@ class VistaCapturaRapida(ctk.CTkFrame):
             command=lambda val: self.al_filtrar('ESTRUCTURA', val)
         )
         self.combo_estructura.set("TODOS")
-        self.combo_estructura.grid(row=0, column=5, padx=8, pady=8)
+        self.combo_estructura.grid(row=0, column=5, padx=8, pady=8, sticky="w")
 
         # Fila 1: Programa y Proyecto
         ctk.CTkLabel(frame_filtros, text="Programa:", font=ctk.CTkFont(weight="bold")).grid(row=1, column=0, padx=(10, 2), pady=8, sticky="w")
@@ -142,6 +143,33 @@ class VistaCapturaRapida(ctk.CTkFrame):
         )
         self.combo_auxiliar.set("TODOS")
         self.combo_auxiliar.grid(row=2, column=1, columnspan=3, padx=8, pady=8, sticky="w")
+
+        # --- CONTENEDOR Y CARGA DEL LOGO (COLUMNA DERECHA DEL FRAME DE FILTROS) ---
+        frame_filtros.grid_columnconfigure(6, weight=1)
+
+        ruta_logo = os.path.join(os.path.dirname(__file__), "..", "..", "assets", "logo_operagua.png")
+        if os.path.exists(ruta_logo):
+            try:
+                img_pil = Image.open(ruta_logo)
+                
+                # Alto máximo fijo en píxeles
+                alto_deseado = 65
+                
+                # Cálculo automático de ancho en función de la relación de aspecto original
+                ancho_orig, alto_orig = img_pil.size
+                proporcion = alto_deseado / float(alto_orig)
+                ancho_calculado = int(ancho_orig * proporcion)
+                
+                logo_ctk = ctk.CTkImage(
+                    light_image=img_pil, 
+                    dark_image=img_pil, 
+                    size=(ancho_calculado, alto_deseado)
+                )
+                
+                lbl_logo = ctk.CTkLabel(frame_filtros, image=logo_ctk, text="")
+                lbl_logo.grid(row=0, column=6, rowspan=3, padx=(15, 20), pady=8, sticky="e")
+            except Exception as e:
+                print(f"No se pudo cargar el logo de OPERAGUA: {e}")
 
         # --- CONTENEDOR SCROLLABLE PARA LA TABLA ---
         self.scroll_frame = ctk.CTkScrollableFrame(self, label_text="Registros Filtrados")
