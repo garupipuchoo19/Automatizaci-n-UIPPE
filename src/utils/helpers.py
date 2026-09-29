@@ -1,10 +1,24 @@
 import os
+import sys
 import shutil
 import docx
 from datetime import datetime
 
+def obtener_ruta_base_sistema():
+    """
+    Obtiene la ruta raíz real del programa.
+    Si se ejecuta como .exe (PyInstaller), devuelve la carpeta donde está guardado el .exe.
+    Si se ejecuta como script Python, devuelve la carpeta del proyecto.
+    """
+    if getattr(sys, 'frozen', False):
+        # Ejecutándose desde el .exe empaquetado
+        return os.path.dirname(sys.executable)
+    else:
+        # Ejecutándose en desarrollo desde código fuente
+        return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 # Directorio raíz del proyecto (Automatizacion_UIPPE)
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+BASE_DIR = obtener_ruta_base_sistema()
 
 ENTRADAS_DIR = os.path.join(BASE_DIR, "entradas")
 SALIDAS_DIR = os.path.join(BASE_DIR, "salidas")

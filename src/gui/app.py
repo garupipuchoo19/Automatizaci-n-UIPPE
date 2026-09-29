@@ -252,7 +252,7 @@ class AppUIPPE(ctk.CTk):
                 self.inyector = InyectorExcelPbRM(self.ruta_excel_maestro)
                 self.vista_captura.ruta_excel_maestro = self.ruta_excel_maestro
                 self.vista_captura.cargar_datos_base()
-                self.vista_captura.actualizar_tabla_metas()
+                self.vista_captura.poblar_catalogos_filtros()
 
                 messagebox.showinfo("¡Éxito!", f"La Sábana Maestra se actualizó correctamente para el ciclo {anio_sel}.")
                 self.log(f"✔ Sábana Maestra actualizada: {nombre_destino}")
@@ -273,7 +273,7 @@ class AppUIPPE(ctk.CTk):
                 ruta_salida=self.ruta_excel_maestro
             )
             self.vista_captura.cargar_datos_base()
-            self.vista_captura.actualizar_tabla_metas()
+            self.vista_captura.poblar_catalogos_filtros()
 
             messagebox.showinfo(
                 "¡Inyección Exitosa!", 
