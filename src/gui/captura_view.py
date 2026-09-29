@@ -167,7 +167,7 @@ class VistaCapturaRapida(ctk.CTkFrame):
                 )
                 
                 lbl_logo = ctk.CTkLabel(frame_filtros, image=logo_ctk, text="")
-                lbl_logo.grid(row=0, column=6, rowspan=3, padx=(15, 20), pady=8, sticky="e")
+                lbl_logo.grid(row=0, column=6, rowspan=3, padx=(0, 25), pady=8, sticky="e")
             except Exception as e:
                 print(f"No se pudo cargar el logo de OPERAGUA: {e}")
 
